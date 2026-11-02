@@ -51,6 +51,7 @@ public final class MiniBitsModel {
     }
 
     public static final class Baked implements BlockStateModel {
+    private static final java.util.Set<BlockState> LOGGED = java.util.concurrent.ConcurrentHashMap.newKeySet();
         @Override
         public void emitQuads(QuadEmitter emitter, BlockAndTintGetter level, BlockPos pos, BlockState state,
                               RandomSource random, Predicate<Direction> cullTest) {
@@ -62,6 +63,7 @@ public final class MiniBitsModel {
                 BlockState mat = f.material() <= snap.palette().size() ? snap.palette().get(f.material() - 1) : null;
                 if (mat == null) continue;
                 var sprite = models.get(mat).particleMaterial();
+                if (LOGGED.add(mat)) System.out.println("[minibits-render] " + mat + " -> " + sprite);
 
                 float p = f.plane() / 16f;
                 float a0 = f.a0() / 16f, a1 = (f.a0() + f.w()) / 16f;
