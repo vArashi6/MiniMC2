@@ -58,6 +58,10 @@ public class MiniBitsBlockEntity extends BlockEntity {
         palette.clear();
         in.read("palette", BlockState.CODEC.listOf()).ifPresent(palette::addAll);
         grid.load(in.read("bits", Codec.INT.listOf()).map(l -> l.stream().mapToInt(Integer::intValue).toArray()).orElse(null));
+                // Client: Chunk-Darstellung neu aufbauen, sobald neue Daten ankommen
+        if (level != null && level.isClientSide()) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 8);
+        }
     }
 
     @Override
