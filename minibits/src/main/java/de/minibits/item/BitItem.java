@@ -5,7 +5,9 @@ import de.minibits.block.MiniBitsBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
@@ -28,6 +30,19 @@ public class BitItem extends Item {
         BlockState s = stack.get(MiniBits.BIT_STATE);
         return s == null ? super.getName(stack)
             : Component.translatable("item.minibits.bit.of", s.getBlock().getName());
+    }
+
+    /** Rechtsklick in die Luft: nächste Form. Shift + Rechtsklick in die Luft: um 90° drehen. */
+    @Override
+    public InteractionResult use(Level level, Player player, InteractionHand hand) {
+        if (level.isClientSide()) return InteractionResult.SUCCESS;
+        int[] st = MiniBits.settingsOf(player).clone();
+        if (player.isShiftKeyDown()) st[1] = (st[1] + 1) & 3;
+        else st[0] = (st[0] + 1) % de.minibits.core.ShapePreset.count();
+        MiniBits.setSettings(player, st);
+        player.sendSystemMessage(Component.literal("Form: " + de.minibits.core.ShapePreset.ALL[st[0]].name()
+            + "  |  Drehung " + (st[1] * 90) + "°"));
+        return InteractionResult.SUCCESS;
     }
 
     @Override

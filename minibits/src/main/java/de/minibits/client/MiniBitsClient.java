@@ -32,7 +32,7 @@ public class MiniBitsClient implements ClientModInitializer {
     public void onInitializeClient() {
         // Registriert den eigenen Blockstate-Modelltyp "minibits:mini_bits"
         MiniBitsModel.register();
-        System.out.println("[minibits-build] Version 4 (Abbau per Paket)");
+        System.out.println("[minibits-build] Version 5 (Shift-Abbau, Rechtsklick-Menü)");
 
         MENU = key("key.minibits.menu", InputConstants.KEY_LALT);
         NEXT = key("key.minibits.next", InputConstants.KEY_V);
@@ -50,10 +50,18 @@ public class MiniBitsClient implements ClientModInitializer {
                 int bx = bit((p.x - pos.getX() - d.getStepX() * eps) * 16);
                 int by = bit((p.y - pos.getY() - d.getStepY() * eps) * 16);
                 int bz = bit((p.z - pos.getZ() - d.getStepZ() * eps) * 16);
-                ClientPlayNetworking.send(new de.minibits.net.RemovePayload(pos, bx, by, bz));
+                ClientPlayNetworking.send(new de.minibits.net.RemovePayload(pos, bx, by, bz, player.isShiftKeyDown()));
             }
             return net.minecraft.world.InteractionResult.SUCCESS;
         });
+
+        try {
+            System.out.println("[minibits-input] Tasten: Menü=" + MENU.getTranslatedKeyMessage().getString()
+                + " Nächste=" + NEXT.getTranslatedKeyMessage().getString()
+                + " Drehen=" + ROTATE.getTranslatedKeyMessage().getString());
+        } catch (Throwable t) {
+            System.out.println("[minibits-input] Tasten-Info Fehler: " + t);
+        }
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> sendSettings());
 

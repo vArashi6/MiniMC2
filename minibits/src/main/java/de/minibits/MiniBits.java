@@ -59,6 +59,10 @@ public class MiniBits implements ModInitializer {
         return SETTINGS.getOrDefault(player.getUUID(), new int[] {0, 0});
     }
 
+    public static void setSettings(Player player, int[] st) {
+        SETTINGS.put(player.getUUID(), st);
+    }
+
     @Override
     public void onInitialize() {
         BIT_STATE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, id("bit_state"),
@@ -119,7 +123,8 @@ public class MiniBits implements ModInitializer {
             if (player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > 64) return;
             if (!(level.getBlockEntity(pos) instanceof MiniBitsBlockEntity mini)) return;
             int[] st = settingsOf(player);
-            int[] box = ShapePreset.box(st[0], 0, clampBit(payload.bx()), clampBit(payload.by()), clampBit(payload.bz()));
+            int[] box = payload.all() ? new int[] {0, 0, 0, 15, 15, 15}
+                : ShapePreset.box(st[0], 0, clampBit(payload.bx()), clampBit(payload.by()), clampBit(payload.bz()));
             mini.grid().clearBox(box[0], box[1], box[2], box[3], box[4], box[5]);
             if (mini.grid().isEmpty()) level.removeBlock(pos, false);
             else mini.changed();
