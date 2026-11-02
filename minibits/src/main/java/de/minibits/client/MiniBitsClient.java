@@ -1,6 +1,5 @@
 package de.minibits.client;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import de.minibits.core.ShapePreset;
 import de.minibits.item.BitItem;
 import de.minibits.item.MiniBlockItem;
@@ -16,7 +15,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.Item;
-import org.lwjgl.glfw.GLFW;
 
 public class MiniBitsClient implements ClientModInitializer {
     private static KeyMapping MENU, NEXT, ROTATE;
@@ -24,7 +22,7 @@ public class MiniBitsClient implements ClientModInitializer {
     private static int rotation = 0;
 
     private static KeyMapping key(String name, int code) {
-        KeyMapping k = new KeyMapping(name, InputConstants.Type.KEYSYM, code, KeyMapping.Category.MISC);
+        KeyMapping k = new KeyMapping(name, code, KeyMapping.Category.MISC);
         KeyMappingHelper.registerKeyMapping(k);
         return k;
     }
@@ -35,9 +33,9 @@ public class MiniBitsClient implements ClientModInitializer {
         MiniBitsModel.register();
         System.out.println("[minibits-build] Version 3 (Presets)");
 
-        MENU = key("key.minibits.menu", GLFW.GLFW_KEY_LEFT_ALT);
-        NEXT = key("key.minibits.next", GLFW.GLFW_KEY_V);
-        ROTATE = key("key.minibits.rotate", GLFW.GLFW_KEY_R);
+        MENU = key("key.minibits.menu", 342);
+        NEXT = key("key.minibits.next", 86);
+        ROTATE = key("key.minibits.rotate", 82);
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> sendSettings());
 
@@ -51,7 +49,7 @@ public class MiniBitsClient implements ClientModInitializer {
             Item held = mc.player.getMainHandItem().getItem();
             boolean relevant = held instanceof BitItem || held instanceof MiniBlockItem;
             if (relevant && (MENU.isDown() || changed)) {
-                mc.player.displayClientMessage(menu(held instanceof MiniBlockItem), true);
+                mc.gui.setOverlayMessage(menu(held instanceof MiniBlockItem), false);
             }
         });
     }
