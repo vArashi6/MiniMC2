@@ -1,5 +1,6 @@
 package de.minibits.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import de.minibits.core.ShapePreset;
 import de.minibits.item.BitItem;
 import de.minibits.item.MiniBlockItem;
@@ -31,11 +32,28 @@ public class MiniBitsClient implements ClientModInitializer {
     public void onInitializeClient() {
         // Registriert den eigenen Blockstate-Modelltyp "minibits:mini_bits"
         MiniBitsModel.register();
-        System.out.println("[minibits-build] Version 3 (Presets)");
+        System.out.println("[minibits-build] Version 4 (Abbau per Paket)");
 
-        MENU = key("key.minibits.menu", 342);
-        NEXT = key("key.minibits.next", 86);
-        ROTATE = key("key.minibits.rotate", 82);
+        MENU = key("key.minibits.menu", InputConstants.KEY_LALT);
+        NEXT = key("key.minibits.next", InputConstants.KEY_V);
+        ROTATE = key("key.minibits.rotate", InputConstants.KEY_R);
+
+        // Linksklick auf Mini-Block: nicht vanilla abbauen, sondern nur das Bit unter dem Fadenkreuz entfernen
+        net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
+            if (!level.isClientSide()) return net.minecraft.world.InteractionResult.PASS;
+            if (!level.getBlockState(pos).is(de.minibits.MiniBits.MINI_BLOCK)) return net.minecraft.world.InteractionResult.PASS;
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult bhr && bhr.getBlockPos().equals(pos)) {
+                double eps = 1.0 / 64.0;
+                var p = bhr.getLocation();
+                var d = bhr.getDirection();
+                int bx = bit((p.x - pos.getX() - d.getStepX() * eps) * 16);
+                int by = bit((p.y - pos.getY() - d.getStepY() * eps) * 16);
+                int bz = bit((p.z - pos.getZ() - d.getStepZ() * eps) * 16);
+                ClientPlayNetworking.send(new de.minibits.net.RemovePayload(pos, bx, by, bz));
+            }
+            return net.minecraft.world.InteractionResult.SUCCESS;
+        });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> sendSettings());
 
@@ -44,15 +62,26 @@ public class MiniBitsClient implements ClientModInitializer {
             boolean changed = false;
             while (NEXT.consumeClick()) { preset = (preset + 1) % ShapePreset.count(); changed = true; }
             while (ROTATE.consumeClick()) { rotation = (rotation + 1) & 3; changed = true; }
-            if (changed) sendSettings();
+            if (changed) {
+                sendSettings();
+                System.out.println("[minibits-input] preset=" + preset + " rotation=" + rotation);
+            }
 
+            if (MENU.isDown() != altWasDown) {
+                altWasDown = MENU.isDown();
+                System.out.println("[minibits-input] Alt " + (altWasDown ? "gedrückt" : "losgelassen"));
+            }
             Item held = mc.player.getMainHandItem().getItem();
             boolean relevant = held instanceof BitItem || held instanceof MiniBlockItem;
             if (relevant && (MENU.isDown() || changed)) {
-            overlay(mc, menu(held instanceof MiniBlockItem), changed);
+                Component text = menu(held instanceof MiniBlockItem);
+                overlay(mc, text, changed);
+                if (changed) mc.player.sendSystemMessage(text); // zusätzlich im Chat, solange wir testen
             }
         });
     }
+
+    private static boolean altWasDown = false;
     private static boolean overlayLogged = false;
 
     /** Zeigt Text über der Hotbar. Sucht die passende Methode zur Laufzeit, weil sich der Name zwischen Versionen ändert. */
@@ -74,8 +103,12 @@ public class MiniBitsClient implements ClientModInitializer {
             System.out.println("[minibits-api] overlay-Fehler: " + t);
         }
         overlayLogged = true;
-        if (changed) mc.player.sendSystemMessage(text); // Notlösung: Chat
     }
+
+    private static int bit(double v) {
+        return Math.max(0, Math.min(15, (int) Math.floor(v)));
+    }
+
     private static void sendSettings() {
         ClientPlayNetworking.send(new SettingsPayload(preset, rotation));
     }

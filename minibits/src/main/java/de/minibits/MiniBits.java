@@ -106,25 +106,23 @@ public class MiniBits implements ModInitializer {
             SETTINGS.put(context.player().getUUID(), new int[] {preset, rot});
         });
 
-        // Abbauen: nur Bits entfernen (Form = gewähltes Preset). Block verschwindet erst, wenn nichts mehr übrig ist.
-        PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) -> {
-            if (level.isClientSide() || !(blockEntity instanceof MiniBitsBlockEntity mini)) return true;
-            if (mini.grid().isEmpty()) return true;
-            HitResult hit = player.pick(6.0, 1.0f, false);
-            if (!(hit instanceof BlockHitResult bhr) || !bhr.getBlockPos().equals(pos)) return false;
+        // Vanilla-Abbau: den ganzen Block nur zerstören lassen, wenn keine Bits mehr drin sind.
+        PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
+            !(blockEntity instanceof MiniBitsBlockEntity mini) || mini.grid().isEmpty());
 
-            double eps = 1.0 / 64.0;
-            Vec3 p = bhr.getLocation();
-            int bx = clampBit((p.x - pos.getX() - bhr.getDirection().getStepX() * eps) * 16);
-            int by = clampBit((p.y - pos.getY() - bhr.getDirection().getStepY() * eps) * 16);
-            int bz = clampBit((p.z - pos.getZ() - bhr.getDirection().getStepZ() * eps) * 16);
-
+        // Einzelne Bits entfernen: der Client schickt die Position des Treffers.
+        PayloadTypeRegistry.serverboundPlay().register(de.minibits.net.RemovePayload.TYPE, de.minibits.net.RemovePayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(de.minibits.net.RemovePayload.TYPE, (payload, context) -> {
+            var player = context.player();
+            var level = player.level();
+            net.minecraft.core.BlockPos pos = payload.pos();
+            if (player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > 64) return;
+            if (!(level.getBlockEntity(pos) instanceof MiniBitsBlockEntity mini)) return;
             int[] st = settingsOf(player);
-            int[] box = ShapePreset.box(st[0], 0, bx, by, bz);
-            int removed = mini.grid().clearBox(box[0], box[1], box[2], box[3], box[4], box[5]);
-            if (mini.grid().isEmpty()) return true;
-            if (removed > 0) mini.changed();
-            return false;
+            int[] box = ShapePreset.box(st[0], 0, clampBit(payload.bx()), clampBit(payload.by()), clampBit(payload.bz()));
+            mini.grid().clearBox(box[0], box[1], box[2], box[3], box[4], box[5]);
+            if (mini.grid().isEmpty()) level.removeBlock(pos, false);
+            else mini.changed();
         });
     }
 

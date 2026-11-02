@@ -75,6 +75,15 @@ public class MiniBitsBlockEntity extends BlockEntity {
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
+    /** Häufigstes Material (für das Inventar-Symbol kopierter Mini-Blöcke). */
+    public BlockState dominantState() {
+        int[] counts = new int[palette.size() + 1];
+        for (short v : grid.raw()) if (v > 0 && v < counts.length) counts[v]++;
+        int best = 0;
+        for (int i = 1; i < counts.length; i++) if (counts[i] > counts[best]) best = i;
+        return best == 0 ? null : palette.get(best - 1);
+    }
+
     public MiniData toData() {
         return new MiniData(java.util.Arrays.stream(grid.toInts()).boxed().toList(), List.copyOf(palette));
     }

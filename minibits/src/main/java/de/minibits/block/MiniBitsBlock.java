@@ -47,7 +47,14 @@ public class MiniBitsBlock extends BaseEntityBlock {
     @Override
     public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state, boolean includeData) {
         ItemStack stack = new ItemStack(MiniBits.MINI_BLOCK_ITEM);
-        if (level.getBlockEntity(pos) instanceof MiniBitsBlockEntity be) stack.set(MiniBits.MINI_DATA, be.toData());
+        if (level.getBlockEntity(pos) instanceof MiniBitsBlockEntity be) {
+            stack.set(MiniBits.MINI_DATA, be.toData());
+            BlockState dom = be.dominantState();
+            if (dom != null) {
+                stack.set(net.minecraft.core.component.DataComponents.ITEM_MODEL,
+                    net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(dom.getBlock()));
+            }
+        }
         return stack;
     }
 
