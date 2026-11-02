@@ -73,7 +73,7 @@ public final class MiniBitsModel {
                 // Nur am Blockrand nach außen culling erlauben
                 if (isOnBoundary(f)) emitter.cullFace(dir);
                 emitter.color(-1, -1, -1, -1);
-                emitter.spriteBake(sprite, MutableQuadView.BAKE_NORMALIZED);
+                emitter.spriteBake(sprite.sprite(), MutableQuadView.BAKE_NORMALIZED);
                 emitter.emit();
             }
         }
