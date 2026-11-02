@@ -70,10 +70,19 @@ public final class MiniBitsModel {
                 for (int i = 0; i < 4; i++) emitter.pos(i, v[i][0], v[i][1], v[i][2]);
                 emitter.uv(0, 0, 0).uv(1, 0, f.h()).uv(2, f.w(), f.h()).uv(3, f.w(), 0);
                 emitter.nominalFace(dir);
-                // Nur am Blockrand nach außen culling erlauben
+                                var sp = sprite.sprite();
+                for (int i = 0; i < 4; i++) {
+                    float fu, fv;
+                    switch (f.dir()) {
+                        case 0, 1 -> { fu = v[i][0]; fv = v[i][2]; }
+                        case 2, 3 -> { fu = v[i][0]; fv = 1f - v[i][1]; }
+                        default -> { fu = v[i][2]; fv = 1f - v[i][1]; }
+                    }
+                    emitter.uv(i, sp.getU0() + (sp.getU1() - sp.getU0()) * fu,
+                                  sp.getV0() + (sp.getV1() - sp.getV0()) * fv);
+                }
                 if (isOnBoundary(f)) emitter.cullFace(dir);
                 emitter.color(-1, -1, -1, -1);
-                emitter.spriteBake(sprite.sprite(), MutableQuadView.BAKE_NORMALIZED);
                 emitter.emit();
             }
         }
