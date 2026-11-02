@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "minibits",
+  "version": "${version}",
+  "name": "Mini Bits",
+  "description": "Miniatur-Blöcke: Jeder Block besteht aus 16x16x16 kleinen Bits.",
+  "authors": ["Du"],
+  "license": "CC0-1.0",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["de.minibits.MiniBits"],
+    "client": ["de.minibits.client.MiniBitsClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "fabric-api": "*",
+    "minecraft": ">=26.3-",
+    "java": ">=25"
+  }
+}

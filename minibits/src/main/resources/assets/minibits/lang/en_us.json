@@ -1,0 +1,6 @@
+{
+  "block.minibits.mini_block": "Mini Block",
+  "item.minibits.bit": "Mini Bit",
+  "item.minibits.bit.of": "Mini Bit: %s",
+  "itemGroup.minibits.main": "Mini Bits"
+}
