@@ -14,11 +14,11 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class MiniBitsBlock extends BaseEntityBlock {
-    public static final MapCodec<MiniBitsBlock> CODEC = simpleCodec(MiniBitsBlock::new);
+
 
     public MiniBitsBlock(Properties properties) { super(properties); }
 
-    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return CODEC; }
+
 
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new MiniBitsBlockEntity(pos, state);
