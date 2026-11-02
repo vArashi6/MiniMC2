@@ -49,11 +49,33 @@ public class MiniBitsClient implements ClientModInitializer {
             Item held = mc.player.getMainHandItem().getItem();
             boolean relevant = held instanceof BitItem || held instanceof MiniBlockItem;
             if (relevant && (MENU.isDown() || changed)) {
-                mc.gui.setOverlayMessage(menu(held instanceof MiniBlockItem), false);
+            overlay(mc, menu(held instanceof MiniBlockItem), changed);
             }
         });
     }
+    private static boolean overlayLogged = false;
 
+    /** Zeigt Text über der Hotbar. Sucht die passende Methode zur Laufzeit, weil sich der Name zwischen Versionen ändert. */
+    private static void overlay(Minecraft mc, Component text, boolean changed) {
+        try {
+            for (var m : mc.gui.getClass().getMethods()) {
+                String n = m.getName().toLowerCase();
+                if (!overlayLogged && (n.contains("overlay") || n.contains("actionbar"))) {
+                    System.out.println("[minibits-api] Gui :: " + m);
+                }
+                if (!(n.contains("overlay") && n.contains("message"))) continue;
+                Class<?>[] pt = m.getParameterTypes();
+                if (pt.length >= 1 && pt[0].isAssignableFrom(Component.class)) {
+                    if (pt.length == 1) { m.invoke(mc.gui, text); overlayLogged = true; return; }
+                    if (pt.length == 2 && pt[1] == boolean.class) { m.invoke(mc.gui, text, false); overlayLogged = true; return; }
+                }
+            }
+        } catch (Throwable t) {
+            System.out.println("[minibits-api] overlay-Fehler: " + t);
+        }
+        overlayLogged = true;
+        if (changed) mc.player.sendSystemMessage(text); // Notlösung: Chat
+    }
     private static void sendSettings() {
         ClientPlayNetworking.send(new SettingsPayload(preset, rotation));
     }
