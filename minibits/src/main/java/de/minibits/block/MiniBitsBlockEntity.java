@@ -2,6 +2,7 @@ package de.minibits.block;
 
 import com.mojang.serialization.Codec;
 import de.minibits.MiniBits;
+import de.minibits.MiniData;
 import de.minibits.core.BitGrid;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -58,7 +59,7 @@ public class MiniBitsBlockEntity extends BlockEntity {
         palette.clear();
         in.read("palette", BlockState.CODEC.listOf()).ifPresent(palette::addAll);
         grid.load(in.read("bits", Codec.INT.listOf()).map(l -> l.stream().mapToInt(Integer::intValue).toArray()).orElse(null));
-                // Client: Chunk-Darstellung neu aufbauen, sobald neue Daten ankommen
+        // Client: Chunk-Darstellung neu aufbauen, sobald neue Daten ankommen
         if (level != null && level.isClientSide()) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 8);
         }
@@ -72,6 +73,18 @@ public class MiniBitsBlockEntity extends BlockEntity {
     @Override
     public Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    public MiniData toData() {
+        return new MiniData(java.util.Arrays.stream(grid.toInts()).boxed().toList(), List.copyOf(palette));
+    }
+
+    public void applyData(MiniData data, int rotation) {
+        palette.clear();
+        palette.addAll(data.palette());
+        grid.load(data.bits().stream().mapToInt(Integer::intValue).toArray());
+        grid.rotateY(rotation);
+        changed();
     }
 
     /** Wird vom Fabric-Renderer im Chunk-Thread gelesen (unveränderlicher Schnappschuss). */

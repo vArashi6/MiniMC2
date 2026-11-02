@@ -26,3 +26,24 @@ public class CoreTest {
         check(GreedyMesher.boxes(h).size()==1, "Form ignoriert Material: 1 Quader");
     }
 }
+
+class CoreTest2 {
+    public static void main(String[] a) {
+        BitGrid g = new BitGrid();
+        g.set(1, 2, 3, (short) 5);
+        g.rotateY(1);
+        CoreTest.check(g.get(12, 2, 1) == 5, "Drehung 90°: (1,2,3) -> (12,2,1)");
+        g.rotateY(3);
+        CoreTest.check(g.get(1, 2, 3) == 5 && g.count() == 1, "4 Drehungen = Original");
+        BitGrid h = new BitGrid();
+        CoreTest.check(h.fillEmpty(0,0,0,3,3,3,(short)1) == 64, "fillEmpty 4x4x4 = 64");
+        CoreTest.check(h.fillEmpty(0,0,0,3,3,3,(short)2) == 0, "fillEmpty überschreibt nichts");
+        CoreTest.check(h.clearBox(0,0,0,1,1,1) == 8, "clearBox 2x2x2 = 8");
+        int[] b = ShapePreset.box(2, 0, 9, 5, 14);
+        CoreTest.check(b[0]==8 && b[1]==4 && b[2]==12 && b[3]==11 && b[4]==7 && b[5]==15, "4x4x4 rastet am Raster ein");
+        int[] l = ShapePreset.box(4, 0, 7, 3, 9);
+        CoreTest.check(l[0]==7 && l[2]==0 && l[5]==15, "Leiste 1x1x16 läuft durch den ganzen Block");
+        int[] l2 = ShapePreset.box(4, 1, 7, 3, 9);
+        CoreTest.check(l2[0]==0 && l2[3]==15 && l2[2]==9 && l2[5]==9, "Leiste gedreht läuft entlang X");
+    }
+}

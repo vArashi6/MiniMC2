@@ -2,5 +2,8 @@
   "block.minibits.mini_block": "Mini Block",
   "item.minibits.bit": "Mini Bit",
   "item.minibits.bit.of": "Mini Bit: %s",
-  "itemGroup.minibits.main": "Mini Bits"
+  "itemGroup.minibits.main": "Mini Bits",
+  "key.minibits.menu": "Shape menu (hold)",
+  "key.minibits.next": "Next shape",
+  "key.minibits.rotate": "Rotate (90°)"
 }

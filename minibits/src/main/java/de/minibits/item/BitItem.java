@@ -64,15 +64,13 @@ public class BitItem extends Item {
         if (!(level.getBlockEntity(target) instanceof MiniBitsBlockEntity be)) return InteractionResult.FAIL;
 
         short idx = be.paletteIndex(material);
-        int placed;
-        if (ctx.getPlayer() != null && ctx.getPlayer().isShiftKeyDown()) {
-            // Shift: 4x4x4-Bereich füllen (ausgerichtet)
-            int x0 = bx / 4 * 4, y0 = by / 4 * 4, z0 = bz / 4 * 4;
-            placed = be.grid().fill(x0, y0, z0, x0 + 3, y0 + 3, z0 + 3, idx);
-        } else {
-            placed = be.grid().set(bx, by, bz, idx) ? 1 : 0;
+        int[] st = MiniBits.settingsOf(ctx.getPlayer());
+        int[] box = de.minibits.core.ShapePreset.box(st[0], st[1], bx, by, bz);
+        int placed = be.grid().fillEmpty(box[0], box[1], box[2], box[3], box[4], box[5], idx);
+        if (placed == 0) {
+            if (be.grid().isEmpty()) level.removeBlock(target, false);
+            return InteractionResult.FAIL;
         }
-        if (placed == 0) return InteractionResult.FAIL;
         be.changed();
         boolean creative = ctx.getPlayer() != null && ctx.getPlayer().getAbilities().instabuild;
         if (!creative) stack.shrink(1);

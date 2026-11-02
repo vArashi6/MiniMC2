@@ -4,7 +4,10 @@ import com.mojang.serialization.MapCodec;
 import de.minibits.core.BitGrid;
 import de.minibits.core.GreedyMesher;
 import net.minecraft.core.BlockPos;
+import de.minibits.MiniBits;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -15,9 +18,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class MiniBitsBlock extends BaseEntityBlock {
 
-
     public MiniBitsBlock(Properties properties) { super(properties); }
-
 
 
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
@@ -41,6 +42,14 @@ public class MiniBitsBlock extends BaseEntityBlock {
     }
 
     @Override protected boolean propagatesSkylightDown(BlockState state) { return true; }
+
+    /** Mittelklick: kopiert den gesamten Mini-Block (alle 16x16x16 Bits). */
+    @Override
+    public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state, boolean includeData) {
+        ItemStack stack = new ItemStack(MiniBits.MINI_BLOCK_ITEM);
+        if (level.getBlockEntity(pos) instanceof MiniBitsBlockEntity be) stack.set(MiniBits.MINI_DATA, be.toData());
+        return stack;
+    }
 
     public static VoxelShape shapeOf(BitGrid grid) {
         VoxelShape shape = Shapes.empty();

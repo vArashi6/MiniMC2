@@ -67,6 +67,39 @@ public final class BitGrid {
         return out;
     }
 
+    /** Füllt nur leere Bits der Box (inklusive). Gibt Anzahl neu gesetzter Bits zurück. */
+    public int fillEmpty(int x0, int y0, int z0, int x1, int y1, int z1, short value) {
+        int changed = 0;
+        for (int x = Math.max(0, Math.min(x0, x1)); x <= Math.min(N - 1, Math.max(x0, x1)); x++)
+            for (int y = Math.max(0, Math.min(y0, y1)); y <= Math.min(N - 1, Math.max(y0, y1)); y++)
+                for (int z = Math.max(0, Math.min(z0, z1)); z <= Math.min(N - 1, Math.max(z0, z1)); z++)
+                    if (get(x, y, z) == 0 && set(x, y, z, value)) changed++;
+        return changed;
+    }
+
+    /** Leert die Box (inklusive). Gibt Anzahl entfernter Bits zurück. */
+    public int clearBox(int x0, int y0, int z0, int x1, int y1, int z1) {
+        int changed = 0;
+        for (int x = Math.max(0, Math.min(x0, x1)); x <= Math.min(N - 1, Math.max(x0, x1)); x++)
+            for (int y = Math.max(0, Math.min(y0, y1)); y <= Math.min(N - 1, Math.max(y0, y1)); y++)
+                for (int z = Math.max(0, Math.min(z0, z1)); z <= Math.min(N - 1, Math.max(z0, z1)); z++)
+                    if (set(x, y, z, (short) 0)) changed++;
+        return changed;
+    }
+
+    /** Dreht das Gitter um die Y-Achse in 90°-Schritten (Blockmitte). */
+    public void rotateY(int quarterTurns) {
+        int t = ((quarterTurns % 4) + 4) % 4;
+        for (int n = 0; n < t; n++) {
+            short[] out = new short[SIZE];
+            for (int x = 0; x < N; x++)
+                for (int y = 0; y < N; y++)
+                    for (int z = 0; z < N; z++)
+                        out[index(N - 1 - z, y, x)] = cells[index(x, y, z)];
+            System.arraycopy(out, 0, cells, 0, SIZE);
+        }
+    }
+
     public BitGrid copy() {
         BitGrid g = new BitGrid();
         System.arraycopy(cells, 0, g.cells, 0, SIZE);

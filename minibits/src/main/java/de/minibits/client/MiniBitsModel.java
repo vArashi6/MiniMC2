@@ -51,7 +51,8 @@ public final class MiniBitsModel {
     }
 
     public static final class Baked implements BlockStateModel {
-    private static final java.util.Set<BlockState> LOGGED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        private static final java.util.Set<BlockState> LOGGED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
         @Override
         public void emitQuads(QuadEmitter emitter, BlockAndTintGetter level, BlockPos pos, BlockState state,
                               RandomSource random, Predicate<Direction> cullTest) {
@@ -70,17 +71,18 @@ public final class MiniBitsModel {
                 float b0 = f.b0() / 16f, b1 = (f.b0() + f.h()) / 16f;
                 float[][] v = corners(f.dir(), p, a0, a1, b0, b1);
                 for (int i = 0; i < 4; i++) emitter.pos(i, v[i][0], v[i][1], v[i][2]);
-                emitter.nominalFace(dir);
                 for (int i = 0; i < 4; i++) {
-    float fu, fv;
-    switch (f.dir()) {
-        case 0, 1 -> { fu = v[i][0]; fv = v[i][2]; }
-        case 2, 3 -> { fu = v[i][0]; fv = 1f - v[i][1]; }
-        default -> { fu = v[i][2]; fv = 1f - v[i][1]; }
-    }
-    emitter.uv(i, fu, fv);
-}
-emitter.materialBake(sprite, MutableQuadView.BAKE_NORMALIZED);
+                    float fu, fv;
+                    switch (f.dir()) {
+                        case 0, 1 -> { fu = v[i][0]; fv = v[i][2]; }
+                        case 2, 3 -> { fu = v[i][0]; fv = 1f - v[i][1]; }
+                        default -> { fu = v[i][2]; fv = 1f - v[i][1]; }
+                    }
+                    emitter.uv(i, fu, fv);
+                }
+                emitter.materialBake(sprite, MutableQuadView.BAKE_NORMALIZED);
+                emitter.nominalFace(dir);
+                // Nur am Blockrand nach außen culling erlauben
                 if (isOnBoundary(f)) emitter.cullFace(dir);
                 emitter.color(-1, -1, -1, -1);
                 emitter.emit();
