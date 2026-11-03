@@ -21,10 +21,7 @@ public class MiniBlockItem extends BlockItem {
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
         if (level.isClientSide()) return InteractionResult.SUCCESS;
-        int[] st = MiniBits.settingsOf(player).clone();
-        st[1] = (st[1] + 1) & 3;
-        MiniBits.setSettings(player, st);
-        player.sendSystemMessage(Component.literal("Drehung " + (st[1] * 90) + "°"));
+        if (player instanceof net.minecraft.server.level.ServerPlayer sp) MiniBits.applyCommand(sp, 2);
         return InteractionResult.SUCCESS;
     }
 

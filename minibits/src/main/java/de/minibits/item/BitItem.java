@@ -32,16 +32,13 @@ public class BitItem extends Item {
             : Component.translatable("item.minibits.bit.of", s.getBlock().getName());
     }
 
-    /** Rechtsklick in die Luft: nächste Form. Shift + Rechtsklick in die Luft: um 90° drehen. */
+    /** Rechtsklick in die Luft: nächste Form. Shift + Rechtsklick in die Luft: vorherige Form. (Drehen: Linksklick in die Luft.) */
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
         if (level.isClientSide()) return InteractionResult.SUCCESS;
-        int[] st = MiniBits.settingsOf(player).clone();
-        if (player.isShiftKeyDown()) st[1] = (st[1] + 1) & 3;
-        else st[0] = (st[0] + 1) % de.minibits.core.ShapePreset.count();
-        MiniBits.setSettings(player, st);
-        player.sendSystemMessage(Component.literal("Form: " + de.minibits.core.ShapePreset.ALL[st[0]].name()
-            + "  |  Drehung " + (st[1] * 90) + "°"));
+        if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
+            MiniBits.applyCommand(sp, player.isShiftKeyDown() ? 1 : 0);
+        }
         return InteractionResult.SUCCESS;
     }
 

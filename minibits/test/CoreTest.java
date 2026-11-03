@@ -47,3 +47,12 @@ class CoreTest2 {
         CoreTest.check(l2[0]==0 && l2[3]==15 && l2[2]==9 && l2[5]==9, "Leiste gedreht läuft entlang X");
     }
 }
+
+class CoreTest3 {
+    public static void main(String[] a) {
+        int[] d = ShapePreset.dims(4, 1);
+        CoreTest.check(d[0]==16 && d[1]==1 && d[2]==1, "Leiste gedreht: 16x1x1");
+        int[] e = ShapePreset.dims(2, 3);
+        CoreTest.check(e[0]==4 && e[1]==4 && e[2]==4, "4x4x4 bleibt 4x4x4");
+    }
+}

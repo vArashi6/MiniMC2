@@ -32,4 +32,10 @@ public final class ShapePreset {
         int x0 = bx / w * w, y0 = by / h * h, z0 = bz / d * d;
         return new int[] {x0, y0, z0, x0 + w - 1, y0 + h - 1, z0 + d - 1};
     }
+    /** Maße {Breite, Höhe, Tiefe} des Presets nach Drehung. */
+    public static int[] dims(int preset, int rotation) {
+        Preset p = ALL[Math.floorMod(preset, ALL.length)];
+        boolean swap = (rotation & 1) == 1;
+        return new int[] {swap ? p.d() : p.w(), p.h(), swap ? p.w() : p.d()};
+    }
 }

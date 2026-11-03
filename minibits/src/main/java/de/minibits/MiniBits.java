@@ -5,7 +5,8 @@ import de.minibits.block.MiniBitsBlockEntity;
 import de.minibits.core.ShapePreset;
 import de.minibits.item.BitItem;
 import de.minibits.item.MiniBlockItem;
-import de.minibits.net.SettingsPayload;
+import de.minibits.net.CommandPayload;
+import de.minibits.net.StatePayload;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
@@ -63,6 +64,17 @@ public class MiniBits implements ModInitializer {
         SETTINGS.put(player.getUUID(), st);
     }
 
+    /** 0 = nächste Form, 1 = vorherige Form, 2 = um 90° drehen. Schickt den neuen Zustand an den Spieler. */
+    public static void applyCommand(net.minecraft.server.level.ServerPlayer player, int cmd) {
+        int[] st = settingsOf(player).clone();
+        int n = ShapePreset.count();
+        if (cmd == 0) st[0] = (st[0] + 1) % n;
+        else if (cmd == 1) st[0] = (st[0] + n - 1) % n;
+        else if (cmd == 2) st[1] = (st[1] + 1) & 3;
+        SETTINGS.put(player.getUUID(), st);
+        ServerPlayNetworking.send(player, new StatePayload(st[0], st[1]));
+    }
+
     @Override
     public void onInitialize() {
         BIT_STATE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, id("bit_state"),
@@ -102,13 +114,11 @@ public class MiniBits implements ModInitializer {
                 })
                 .build());
 
-        // Netzwerk: Client sendet gewählte Form und Drehung
-        PayloadTypeRegistry.serverboundPlay().register(SettingsPayload.TYPE, SettingsPayload.CODEC);
-        ServerPlayNetworking.registerGlobalReceiver(SettingsPayload.TYPE, (payload, context) -> {
-            int preset = Math.floorMod(payload.preset(), ShapePreset.count());
-            int rot = Math.floorMod(payload.rotation(), 4);
-            SETTINGS.put(context.player().getUUID(), new int[] {preset, rot});
-        });
+        // Netzwerk: Client schickt Kommandos (Form wechseln / drehen), Server antwortet mit dem aktuellen Zustand
+        PayloadTypeRegistry.clientboundPlay().register(StatePayload.TYPE, StatePayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(CommandPayload.TYPE, CommandPayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(CommandPayload.TYPE,
+            (payload, context) -> applyCommand(context.player(), payload.cmd()));
 
         // Vanilla-Abbau: den ganzen Block nur zerstören lassen, wenn keine Bits mehr drin sind.
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
