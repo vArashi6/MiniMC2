@@ -56,3 +56,22 @@ class CoreTest3 {
         CoreTest.check(e[0]==4 && e[1]==4 && e[2]==4, "4x4x4 bleibt 4x4x4");
     }
 }
+
+class CoreTest4 {
+    public static void main(String[] a) {
+        BitGrid left = new BitGrid(), right = new BitGrid();
+        left.fill(0,0,0,15,15,15,(short)1);
+        right.fill(0,0,0,15,15,15,(short)1);
+        BitGrid[] nb = new BitGrid[6];
+        nb[GreedyMesher.EAST] = right;
+        var faces = GreedyMesher.mesh(left, nb);
+        int area = 0; for (var f : faces) area += f.w()*f.h();
+        CoreTest.check(faces.size()==5 && area==5*256, "Fläche zum Nachbarn entfällt: " + faces.size() + " Rechtecke");
+        BitGrid partial = new BitGrid();
+        partial.fill(0,0,0,15,7,15,(short)1);
+        nb[GreedyMesher.EAST] = partial;
+        var f2 = GreedyMesher.mesh(left, nb);
+        int east = 0; for (var f : f2) if (f.dir()==GreedyMesher.EAST) east += f.w()*f.h();
+        CoreTest.check(east == 16*8, "Teilweise verdeckt: nur obere Hälfte bleibt (" + east + ")");
+    }
+}

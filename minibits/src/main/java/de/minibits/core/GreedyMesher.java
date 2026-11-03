@@ -21,12 +21,20 @@ public final class GreedyMesher {
     };
 
     public static List<Face> mesh(BitGrid g) {
+        return mesh(g, null);
+    }
+
+    /**
+     * neighbors[dir] = Gitter des angrenzenden Mini-Blocks in dieser Richtung (oder null).
+     * Flächen, die an gefüllte Bits des Nachbarblocks grenzen, werden nicht erzeugt.
+     */
+    public static List<Face> mesh(BitGrid g, BitGrid[] neighbors) {
         List<Face> out = new ArrayList<>();
-        for (int dir = 0; dir < 6; dir++) meshDir(g, dir, out);
+        for (int dir = 0; dir < 6; dir++) meshDir(g, neighbors, dir, out);
         return out;
     }
 
-    private static void meshDir(BitGrid g, int dir, List<Face> out) {
+    private static void meshDir(BitGrid g, BitGrid[] neighbors, int dir, List<Face> out) {
         int[] n = NORMAL[dir];
         short[][] mask = new short[BitGrid.N][BitGrid.N];
         for (int layer = 0; layer < BitGrid.N; layer++) {
@@ -34,7 +42,10 @@ public final class GreedyMesher {
                 for (int b = 0; b < BitGrid.N; b++) {
                     int[] p = toXYZ(dir, layer, a, b);
                     short here = g.get(p[0], p[1], p[2]);
-                    short next = g.get(p[0] + n[0], p[1] + n[1], p[2] + n[2]);
+                    int nx = p[0] + n[0], ny = p[1] + n[1], nz = p[2] + n[2];
+                    short next;
+                    if (BitGrid.inside(nx, ny, nz)) next = g.get(nx, ny, nz);
+                    else next = (neighbors != null && neighbors[dir] != null) ? neighbors[dir].get(nx & 15, ny & 15, nz & 15) : 0;
                     mask[a][b] = (here != 0 && next == 0) ? here : 0;
                 }
             for (int a = 0; a < BitGrid.N; a++)

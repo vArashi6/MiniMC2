@@ -59,7 +59,25 @@ public final class MiniBitsModel {
             if (!(level.getBlockEntityRenderData(pos) instanceof MiniBitsBlockEntity.Snapshot snap)) return;
             var models = Minecraft.getInstance().getModelManager().getBlockStateModelSet();
 
-            for (GreedyMesher.Face f : GreedyMesher.mesh(snap.grid())) {
+            // Licht: das hellste Licht der Umgebung als Mindestwert, damit Flächen im Block nicht dunkler sind als nötig
+            int sky = level.getBrightness(net.minecraft.world.level.LightLayer.SKY, pos);
+            int blk = level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos);
+            for (Direction nd : DIRS) {
+                BlockPos np = pos.relative(nd);
+                sky = Math.max(sky, level.getBrightness(net.minecraft.world.level.LightLayer.SKY, np));
+                blk = Math.max(blk, level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, np));
+            }
+            int packedLight = (blk << 4) | (sky << 20);
+
+            // Angrenzende Mini-Blöcke: Flächen zwischen zwei gefüllten Bits über die Blockgrenze hinweg weglassen
+            de.minibits.core.BitGrid[] neighbors = new de.minibits.core.BitGrid[6];
+            for (int i = 0; i < 6; i++) {
+                if (level.getBlockEntityRenderData(pos.relative(DIRS[i])) instanceof MiniBitsBlockEntity.Snapshot ns) {
+                    neighbors[i] = ns.grid();
+                }
+            }
+
+            for (GreedyMesher.Face f : GreedyMesher.mesh(snap.grid(), neighbors)) {
                 Direction dir = DIRS[f.dir()];
                 BlockState mat = f.material() <= snap.palette().size() ? snap.palette().get(f.material() - 1) : null;
                 if (mat == null) continue;
@@ -85,6 +103,7 @@ public final class MiniBitsModel {
                 // Nur am Blockrand nach außen culling erlauben
                 if (isOnBoundary(f)) emitter.cullFace(dir);
                 emitter.ambientOcclusion(net.fabricmc.fabric.api.util.TriState.FALSE);
+                emitter.minLightmap(packedLight);
                 emitter.color(-1, -1, -1, -1);
                 emitter.emit();
             }
