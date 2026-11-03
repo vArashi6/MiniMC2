@@ -41,6 +41,15 @@ public class MiniBitsBlock extends BaseEntityBlock {
         return Shapes.empty();
     }
 
+    /**
+     * Terrain-Ambient-Occlusion: Minecraft hält den Block für einen vollen Würfel (die Form hängt vom Block-Entity ab)
+     * und dunkelt deshalb den Boden rundherum ab. Mit 1.0 bleibt der Boden hell.
+     */
+    @Override
+    protected float getShadeBrightness(BlockState state, BlockGetter level, BlockPos pos) {
+        return 1.0f;
+    }
+
     @Override protected boolean propagatesSkylightDown(BlockState state) { return true; }
 
     /** Mittelklick: kopiert den gesamten Mini-Block (alle 16x16x16 Bits). */
@@ -49,6 +58,7 @@ public class MiniBitsBlock extends BaseEntityBlock {
         ItemStack stack = new ItemStack(MiniBits.MINI_BLOCK_ITEM);
         if (level.getBlockEntity(pos) instanceof MiniBitsBlockEntity be) {
             stack.set(MiniBits.MINI_DATA, be.toData());
+            stack.set(MiniBits.MINI_ICON, be.iconPixels());
             BlockState dom = be.dominantState();
             if (dom != null) {
                 stack.set(net.minecraft.core.component.DataComponents.ITEM_MODEL,

@@ -84,6 +84,32 @@ public class MiniBitsBlockEntity extends BlockEntity {
         return best == 0 ? null : palette.get(best - 1);
     }
 
+    /** 16x16 Vorderansicht (ARGB, Zeile für Zeile von oben) als Vorschau-Symbol. */
+    public List<Integer> iconPixels() {
+        Integer[] out = new Integer[256];
+        for (int x = 0; x < 16; x++) {
+            for (int y = 0; y < 16; y++) {
+                int color = 0;
+                for (int z = 15; z >= 0; z--) {
+                    short v = grid.get(x, y, z);
+                    if (v == 0) continue;
+                    BlockState st = stateAt(v);
+                    int rgb = 0x88AACC;
+                    if (st != null) {
+                        int col = st.getMapColor(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, BlockPos.ZERO).col;
+                        if (col != 0) rgb = col;
+                    }
+                    double shade = 1.0 - (15 - z) * 0.012;
+                    int r = (int) (((rgb >> 16) & 255) * shade), g = (int) (((rgb >> 8) & 255) * shade), b = (int) ((rgb & 255) * shade);
+                    color = 0xFF000000 | (r << 16) | (g << 8) | b;
+                    break;
+                }
+                out[(15 - y) * 16 + x] = color;
+            }
+        }
+        return java.util.Arrays.asList(out);
+    }
+
     public MiniData toData() {
         return new MiniData(java.util.Arrays.stream(grid.toInts()).boxed().toList(), List.copyOf(palette));
     }

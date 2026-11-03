@@ -51,6 +51,7 @@ public class MiniBits implements ModInitializer {
     public static MiniBlockItem MINI_BLOCK_ITEM;
     public static DataComponentType<BlockState> BIT_STATE;
     public static DataComponentType<MiniData> MINI_DATA;
+    public static DataComponentType<java.util.List<Integer>> MINI_ICON;
 
     /** Pro Spieler (Server): {Preset, Drehung}. Wird vom Client per Paket gesetzt. */
     private static final Map<UUID, int[]> SETTINGS = new ConcurrentHashMap<>();
@@ -85,6 +86,14 @@ public class MiniBits implements ModInitializer {
 
         MINI_DATA = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, id("mini_data"),
             DataComponentType.<MiniData>builder().persistent(MiniData.CODEC).build());
+
+        // Vorschau-Bild (16x16 Pixel, Vorderansicht) eines kopierten Mini-Blocks, wird an den Client übertragen
+        com.mojang.serialization.Codec<java.util.List<Integer>> iconCodec = com.mojang.serialization.Codec.INT.listOf();
+        MINI_ICON = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, id("icon"),
+            DataComponentType.<java.util.List<Integer>>builder()
+                .persistent(iconCodec)
+                .networkSynchronized(ByteBufCodecs.fromCodec(iconCodec))
+                .build());
 
         ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, id("mini_block"));
         MINI_BLOCK = Registry.register(BuiltInRegistries.BLOCK, blockKey,

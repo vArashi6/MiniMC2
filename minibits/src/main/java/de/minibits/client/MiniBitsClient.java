@@ -18,7 +18,7 @@ public class MiniBitsClient implements ClientModInitializer {
     public void onInitializeClient() {
         // Registriert den eigenen Blockstate-Modelltyp "minibits:mini_bits"
         MiniBitsModel.register();
-        System.out.println("[minibits-build] Version 7 (freies Setzen)");
+        System.out.println("[minibits-build] Version 8 (Icon)");
 
         listApi();
 
@@ -27,6 +27,20 @@ public class MiniBitsClient implements ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> MiniBitsHud.reset());
         ClientPlayNetworking.registerGlobalReceiver(StatePayload.TYPE,
             (payload, context) -> MiniBitsHud.setState(payload.preset(), payload.rotation()));
+
+        // Inventar-Symbol kopierter Mini-Blöcke: Vorderansicht als Pixelbild über das Standard-Symbol zeichnen
+        net.fabricmc.fabric.api.client.rendering.v1.ExtractItemDecorationsCallback.EVENT.register((graphics, font, stack, x, y) -> {
+            if (!(stack.getItem() instanceof de.minibits.item.MiniBlockItem)) return;
+            var icon = stack.get(de.minibits.MiniBits.MINI_ICON);
+            if (icon == null || icon.size() < 256) return;
+            graphics.fill(x, y, x + 16, y + 16, 0xFF3A3A3A);
+            for (int i = 0; i < 256; i++) {
+                int c = icon.get(i);
+                if ((c >>> 24) == 0) continue;
+                int px = i % 16, py = i / 16;
+                graphics.fill(x + px, y + py, x + px + 1, y + py + 1, c);
+            }
+        });
 
         // Linksklick auf Mini-Block: nicht vanilla abbauen, sondern nur das Bit unter dem Fadenkreuz entfernen
         net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
