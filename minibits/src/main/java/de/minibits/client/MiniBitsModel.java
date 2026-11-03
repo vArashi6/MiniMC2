@@ -84,6 +84,7 @@ public final class MiniBitsModel {
                 emitter.nominalFace(dir);
                 // Nur am Blockrand nach außen culling erlauben
                 if (isOnBoundary(f)) emitter.cullFace(dir);
+                emitter.ambientOcclusion(net.fabricmc.fabric.api.util.TriState.FALSE);
                 emitter.color(-1, -1, -1, -1);
                 emitter.emit();
             }

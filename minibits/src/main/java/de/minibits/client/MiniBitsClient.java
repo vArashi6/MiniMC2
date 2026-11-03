@@ -12,11 +12,15 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Minecraft;
 
 public class MiniBitsClient implements ClientModInitializer {
+    private static long lastRemoveMs = 0;
+
     @Override
     public void onInitializeClient() {
         // Registriert den eigenen Blockstate-Modelltyp "minibits:mini_bits"
         MiniBitsModel.register();
-        System.out.println("[minibits-build] Version 6 (Einblendung)");
+        System.out.println("[minibits-build] Version 7 (freies Setzen)");
+
+        listApi();
 
         // Einblendung der Formen
         HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, de.minibits.MiniBits.id("shape_hud"), MiniBitsHud::render);
@@ -29,6 +33,9 @@ public class MiniBitsClient implements ClientModInitializer {
             if (!level.isClientSide()) return net.minecraft.world.InteractionResult.PASS;
             if (!level.getBlockState(pos).is(de.minibits.MiniBits.MINI_BLOCK)) return net.minecraft.world.InteractionResult.PASS;
             Minecraft mc = Minecraft.getInstance();
+            long now = System.currentTimeMillis();
+            if (now - lastRemoveMs < 250) return net.minecraft.world.InteractionResult.SUCCESS; // Tempo begrenzen
+            lastRemoveMs = now;
             if (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult bhr && bhr.getBlockPos().equals(pos)) {
                 double eps = 1.0 / 64.0;
                 var p = bhr.getLocation();
@@ -48,6 +55,25 @@ public class MiniBitsClient implements ClientModInitializer {
             ClientPlayNetworking.send(new CommandPayload(2));
             return true;
         });
+    }
+
+    /** Diagnose für das spätere Item-Icon: listet Klassen der Fabric-Module mit "Item" oder "Special" im Namen. */
+    private static void listApi() {
+        try {
+            for (String id : new String[] {"fabric-model-loading-api-v1", "fabric-renderer-api-v1", "fabric-rendering-v1"}) {
+                var c = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(id);
+                if (c.isEmpty()) continue;
+                for (var root : c.get().getRootPaths()) {
+                    try (var w = java.nio.file.Files.walk(root)) {
+                        w.map(Object::toString)
+                            .filter(p -> p.endsWith(".class") && !p.contains("$") && (p.contains("Item") || p.contains("Special")) && !p.contains("/impl/") && !p.contains("/mixin/"))
+                            .forEach(p -> System.out.println("[minibits-api] " + id + " :: " + p));
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            System.out.println("[minibits-api] Fehler: " + t);
+        }
     }
 
     private static int bit(double v) {

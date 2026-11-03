@@ -33,11 +33,11 @@ public final class MiniBitsHud {
         boolean bit = held instanceof BitItem;
         boolean whole = held instanceof MiniBlockItem;
         if (!bit && !whole) return;
-        if (System.currentTimeMillis() - changedAt > 4000) return;
+        if (System.currentTimeMillis() - changedAt > 1000) return;
 
         int w = mc.getWindow().getGuiScaledWidth();
         int h = mc.getWindow().getGuiScaledHeight();
-        int x0 = w / 2 + 30;
+        int x0 = w / 2 + 70;
         int y0 = h / 2 - 50;
         var font = mc.font;
 

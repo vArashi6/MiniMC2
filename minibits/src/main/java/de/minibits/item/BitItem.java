@@ -48,44 +48,77 @@ public class BitItem extends Item {
         ItemStack stack = ctx.getItemInHand();
         BlockState material = stack.get(MiniBits.BIT_STATE);
         if (material == null) return InteractionResult.PASS;
-
-        BlockPos clicked = ctx.getClickedPos();
-        Direction face = ctx.getClickedFace();
-        Vec3 hit = ctx.getClickLocation();
-
-        // Zielposition in Bit-Koordinaten relativ zum angeklickten Block, leicht aus der Fläche heraus verschoben
-        double eps = 1.0 / 64.0;
-        double lx = hit.x - clicked.getX() + face.getStepX() * eps;
-        double ly = hit.y - clicked.getY() + face.getStepY() * eps;
-        double lz = hit.z - clicked.getZ() + face.getStepZ() * eps;
-        BlockPos target = clicked;
-        int bx = (int) Math.floor(lx * 16), by = (int) Math.floor(ly * 16), bz = (int) Math.floor(lz * 16);
-        // Außerhalb des Blocks -> Nachbarblock
-        int ox = Math.floorDiv(bx, 16), oy = Math.floorDiv(by, 16), oz = Math.floorDiv(bz, 16);
-        target = clicked.offset(ox, oy, oz);
-        bx = Math.floorMod(bx, 16); by = Math.floorMod(by, 16); bz = Math.floorMod(bz, 16);
-
         if (level.isClientSide()) return InteractionResult.SUCCESS;
 
-        // Zielblock vorbereiten: leer/ersetzbar -> Mini-Block
-        BlockState existing = level.getBlockState(target);
-        if (existing.getBlock() != MiniBits.MINI_BLOCK) {
-            if (!existing.canBeReplaced()) return InteractionResult.FAIL;
-            level.setBlock(target, MiniBits.MINI_BLOCK.defaultBlockState(), 3);
-        }
-        if (!(level.getBlockEntity(target) instanceof MiniBitsBlockEntity be)) return InteractionResult.FAIL;
+        Direction face = ctx.getClickedFace();
+        Vec3 hit = ctx.getClickLocation();
+        Player player = ctx.getPlayer();
 
-        short idx = be.paletteIndex(material);
-        int[] st = MiniBits.settingsOf(ctx.getPlayer());
-        int[] box = de.minibits.core.ShapePreset.box(st[0], st[1], bx, by, bz);
-        int placed = be.grid().fillEmpty(box[0], box[1], box[2], box[3], box[4], box[5], idx);
-        if (placed == 0) {
-            if (be.grid().isEmpty()) level.removeBlock(target, false);
-            return InteractionResult.FAIL;
+        // Angepeiltes Bit (globale Bit-Koordinaten), eine Zelle aus der Fläche heraus
+        double eps = 1.0 / 64.0;
+        int[] aim = {
+            (int) Math.floor((hit.x + face.getStepX() * eps) * 16),
+            (int) Math.floor((hit.y + face.getStepY() * eps) * 16),
+            (int) Math.floor((hit.z + face.getStepZ() * eps) * 16)
+        };
+        int[] step = {face.getStepX(), face.getStepY(), face.getStepZ()};
+
+        int[] st = MiniBits.settingsOf(player);
+        int[] dims = de.minibits.core.ShapePreset.dims(st[0], st[1]);
+        boolean snap = player != null && player.isShiftKeyDown(); // Shift: am Raster einrasten
+
+        int[] lo = new int[3];
+        int[] hi = new int[3];
+        for (int i = 0; i < 3; i++) {
+            int size = dims[i];
+            int start;
+            if (size >= 16) {
+                start = Math.floorDiv(aim[i], 16) * 16;           // ganzer Block auf dieser Achse
+            } else if (snap) {
+                start = Math.floorDiv(aim[i], size) * size;       // Raster
+            } else if (step[i] != 0) {
+                start = step[i] > 0 ? aim[i] : aim[i] - size + 1; // von der Fläche weg
+            } else {
+                start = aim[i] - size / 2;                        // quer dazu: um das Ziel zentriert (darf überstehen)
+            }
+            lo[i] = start;
+            hi[i] = start + size - 1;
         }
-        be.changed();
-        boolean creative = ctx.getPlayer() != null && ctx.getPlayer().getAbilities().instabuild;
+
+        int placed = placeBox(level, lo, hi, material);
+        if (placed == 0) return InteractionResult.FAIL;
+        boolean creative = player != null && player.getAbilities().instabuild;
         if (!creative) stack.shrink(1);
         return InteractionResult.SUCCESS;
+    }
+
+    /** Setzt die Box (globale Bit-Koordinaten, inklusive) und legt dabei bei Bedarf Nachbar-Mini-Blöcke an. */
+    private static int placeBox(Level level, int[] lo, int[] hi, BlockState material) {
+        int total = 0;
+        for (int bx = Math.floorDiv(lo[0], 16); bx <= Math.floorDiv(hi[0], 16); bx++)
+            for (int by = Math.floorDiv(lo[1], 16); by <= Math.floorDiv(hi[1], 16); by++)
+                for (int bz = Math.floorDiv(lo[2], 16); bz <= Math.floorDiv(hi[2], 16); bz++) {
+                    BlockPos bp = new BlockPos(bx, by, bz);
+                    if (!level.isInWorldBounds(bp)) continue;
+                    BlockState existing = level.getBlockState(bp);
+                    boolean wasMini = existing.is(MiniBits.MINI_BLOCK);
+                    if (!wasMini && !existing.canBeReplaced()) continue;
+
+                    int x0 = Math.max(lo[0], bx * 16) - bx * 16, x1 = Math.min(hi[0], bx * 16 + 15) - bx * 16;
+                    int y0 = Math.max(lo[1], by * 16) - by * 16, y1 = Math.min(hi[1], by * 16 + 15) - by * 16;
+                    int z0 = Math.max(lo[2], bz * 16) - bz * 16, z1 = Math.min(hi[2], bz * 16 + 15) - bz * 16;
+
+                    if (!wasMini) level.setBlock(bp, MiniBits.MINI_BLOCK.defaultBlockState(), 3);
+                    if (!(level.getBlockEntity(bp) instanceof MiniBitsBlockEntity be)) continue;
+                    short idx = be.paletteIndex(material);
+                    int n = be.grid().fillEmpty(x0, y0, z0, x1, y1, z1, idx);
+                    if (n > 0) {
+                        be.changed();
+                        total += n;
+                    } else if (!wasMini && be.grid().isEmpty()) {
+                        level.removeBlock(bp, false);
+                    }
+                }
+        return total;
     }
 }
