@@ -4,7 +4,7 @@ import de.minibits.item.BitItem;
 import de.minibits.net.CommandPayload;
 import de.minibits.net.StatePayload;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.player.ClientPreAttackCallback;
+import net.fabricmc.fabric.api.event.client.player.ClientPreAttackCallback;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
