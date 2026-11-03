@@ -28,7 +28,7 @@ public final class MiniBitsHud {
 
     public static void render(GuiGraphicsExtractor g, DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.options.hideGui) return;
+        if (mc.player == null) return;
         Item held = mc.player.getMainHandItem().getItem();
         boolean bit = held instanceof BitItem;
         boolean whole = held instanceof MiniBlockItem;
