@@ -104,6 +104,7 @@ public final class MiniBitsModel {
                 if (isOnBoundary(f)) emitter.cullFace(dir);
                 emitter.ambientOcclusion(net.fabricmc.fabric.api.util.TriState.FALSE);
                 emitter.minLightmap(packedLight);
+                emitter.emissive(mat.getLightEmission() > 0);
                 emitter.color(-1, -1, -1, -1);
                 emitter.emit();
             }

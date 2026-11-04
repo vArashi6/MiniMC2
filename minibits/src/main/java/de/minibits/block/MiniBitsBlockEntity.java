@@ -42,8 +42,33 @@ public class MiniBitsBlockEntity extends BlockEntity {
 
     /** Nach jeder Änderung aufrufen: speichern + Client/Rendering aktualisieren. */
     public void changed() {
+        updateDerivedState();
         setChanged();
         if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+    }
+
+    /** Leuchtkraft und Geräuschtyp aus den enthaltenen Materialien berechnen und im Blockzustand ablegen (nur Server). */
+    private void updateDerivedState() {
+        if (level == null || level.isClientSide()) return;
+        int[] counts = new int[palette.size() + 1];
+        for (short v : grid.raw()) if (v > 0 && v < counts.length) counts[v]++;
+
+        int light = 0, best = 0;
+        for (int i = 1; i < counts.length; i++) {
+            if (counts[i] > counts[best]) best = i;
+            int emission = palette.get(i - 1).getLightEmission();
+            if (emission > 0 && counts[i] > 0) {
+                double f = Math.min(1.0, 0.25 + 0.75 * counts[i] / 512.0);
+                light = Math.max(light, (int) Math.round(emission * f));
+            }
+        }
+        int snd = best == 0 ? 0 : MiniBitsBlock.soundIndexOf(palette.get(best - 1).getSoundType());
+
+        BlockState st = getBlockState();
+        if (!st.hasProperty(MiniBitsBlock.LIGHT) || !st.hasProperty(MiniBitsBlock.SND)) return;
+        if (st.getValue(MiniBitsBlock.LIGHT) != light || st.getValue(MiniBitsBlock.SND) != snd) {
+            level.setBlock(worldPosition, st.setValue(MiniBitsBlock.LIGHT, light).setValue(MiniBitsBlock.SND, snd), 3);
+        }
     }
 
     @Override
@@ -84,29 +109,19 @@ public class MiniBitsBlockEntity extends BlockEntity {
         return best == 0 ? null : palette.get(best - 1);
     }
 
-    /** 16x16 Vorderansicht (ARGB, Zeile für Zeile von oben) als Vorschau-Symbol. */
+    /** 16x16-Vorschaubild (ARGB) mit drei sichtbaren Seiten. */
     public List<Integer> iconPixels() {
-        Integer[] out = new Integer[256];
-        for (int x = 0; x < 16; x++) {
-            for (int y = 0; y < 16; y++) {
-                int color = 0;
-                for (int z = 15; z >= 0; z--) {
-                    short v = grid.get(x, y, z);
-                    if (v == 0) continue;
-                    BlockState st = stateAt(v);
-                    int rgb = 0x88AACC;
-                    if (st != null) {
-                        int col = st.getMapColor(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, BlockPos.ZERO).col;
-                        if (col != 0) rgb = col;
-                    }
-                    double shade = 1.0 - (15 - z) * 0.012;
-                    int r = (int) (((rgb >> 16) & 255) * shade), g = (int) (((rgb >> 8) & 255) * shade), b = (int) ((rgb & 255) * shade);
-                    color = 0xFF000000 | (r << 16) | (g << 8) | b;
-                    break;
-                }
-                out[(15 - y) * 16 + x] = color;
-            }
+        int[] pal = new int[palette.size() + 1];
+        for (int i = 1; i < pal.length; i++) {
+            BlockState st = palette.get(i - 1);
+            int rgb = 0x88AACC;
+            int col = st.getMapColor(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, BlockPos.ZERO).col;
+            if (col != 0) rgb = col;
+            pal[i] = rgb;
         }
+        int[] px = de.minibits.core.IconRenderer.render(grid, pal);
+        Integer[] out = new Integer[256];
+        for (int i = 0; i < 256; i++) out[i] = px[i];
         return java.util.Arrays.asList(out);
     }
 

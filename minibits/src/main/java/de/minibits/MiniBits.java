@@ -65,13 +65,14 @@ public class MiniBits implements ModInitializer {
         SETTINGS.put(player.getUUID(), st);
     }
 
-    /** 0 = nächste Form, 1 = vorherige Form, 2 = um 90° drehen. Schickt den neuen Zustand an den Spieler. */
+    /** 0 = nächste Form, 1 = vorherige Form, 2 = um 90° drehen, 3 = zurück auf 1x1x1 ohne Drehung. Schickt den neuen Zustand an den Spieler. */
     public static void applyCommand(net.minecraft.server.level.ServerPlayer player, int cmd) {
         int[] st = settingsOf(player).clone();
         int n = ShapePreset.count();
         if (cmd == 0) st[0] = (st[0] + 1) % n;
         else if (cmd == 1) st[0] = (st[0] + n - 1) % n;
         else if (cmd == 2) st[1] = (st[1] + 1) & 3;
+        else if (cmd == 3) { st[0] = 0; st[1] = 0; }
         SETTINGS.put(player.getUUID(), st);
         ServerPlayNetworking.send(player, new StatePayload(st[0], st[1]));
     }
@@ -97,7 +98,8 @@ public class MiniBits implements ModInitializer {
 
         ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, id("mini_block"));
         MINI_BLOCK = Registry.register(BuiltInRegistries.BLOCK, blockKey,
-            new MiniBitsBlock(Block.Properties.of().setId(blockKey).noOcclusion().strength(1.0f)));
+            new MiniBitsBlock(Block.Properties.of().setId(blockKey).noOcclusion().strength(1.0f)
+                .lightLevel(state -> state.getValue(MiniBitsBlock.LIGHT))));
 
         MINI_BLOCK_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("mini_block"),
             FabricBlockEntityTypeBuilder.create(MiniBitsBlockEntity::new, MINI_BLOCK).build());
@@ -144,7 +146,13 @@ public class MiniBits implements ModInitializer {
             int[] st = settingsOf(player);
             int[] box = payload.all() ? new int[] {0, 0, 0, 15, 15, 15}
                 : ShapePreset.box(st[0], 0, clampBit(payload.bx()), clampBit(payload.by()), clampBit(payload.bz()));
+            BlockState hitMaterial = mini.stateAt(mini.grid().get(clampBit(payload.bx()), clampBit(payload.by()), clampBit(payload.bz())));
             mini.grid().clearBox(box[0], box[1], box[2], box[3], box[4], box[5]);
+            if (hitMaterial != null) {
+                net.minecraft.world.level.block.SoundType sound = hitMaterial.getSoundType();
+                level.playSound(null, pos, sound.getBreakSound(), net.minecraft.sounds.SoundSource.BLOCKS,
+                    (sound.getVolume() + 1.0f) / 2.0f, sound.getPitch() * 0.8f);
+            }
             if (mini.grid().isEmpty()) level.removeBlock(pos, false);
             else mini.changed();
         });

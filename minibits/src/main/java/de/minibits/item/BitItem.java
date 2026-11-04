@@ -87,6 +87,9 @@ public class BitItem extends Item {
 
         int placed = placeBox(level, lo, hi, material);
         if (placed == 0) return InteractionResult.FAIL;
+        net.minecraft.world.level.block.SoundType sound = material.getSoundType();
+        level.playSound(null, net.minecraft.core.BlockPos.containing(hit), sound.getPlaceSound(),
+            net.minecraft.sounds.SoundSource.BLOCKS, (sound.getVolume() + 1.0f) / 2.0f, sound.getPitch() * 0.8f);
         boolean creative = player != null && player.getAbilities().instabuild;
         if (!creative) stack.shrink(1);
         return InteractionResult.SUCCESS;

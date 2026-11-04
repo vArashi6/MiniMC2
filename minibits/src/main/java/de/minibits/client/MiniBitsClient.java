@@ -13,14 +13,23 @@ import net.minecraft.client.Minecraft;
 
 public class MiniBitsClient implements ClientModInitializer {
     private static long lastRemoveMs = 0;
+    private static boolean prevWasBit = true;
 
     @Override
     public void onInitializeClient() {
         // Registriert den eigenen Blockstate-Modelltyp "minibits:mini_bits"
         MiniBitsModel.register();
-        System.out.println("[minibits-build] Version 8 (Icon)");
+        System.out.println("[minibits-build] Version 9 (Leuchten, Sound, Icon 3D)");
 
         listApi();
+
+        // Von der bloßen Hand (oder einem anderen Item) auf ein Bit wechseln: wieder 1x1x1 ohne Drehung
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            if (mc.player == null) { prevWasBit = true; return; }
+            boolean nowBit = mc.player.getMainHandItem().getItem() instanceof BitItem;
+            if (nowBit && !prevWasBit) ClientPlayNetworking.send(new CommandPayload(3));
+            prevWasBit = nowBit;
+        });
 
         // Einblendung der Formen
         HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, de.minibits.MiniBits.id("shape_hud"), MiniBitsHud::render);
@@ -71,22 +80,30 @@ public class MiniBitsClient implements ClientModInitializer {
         });
     }
 
-    /** Diagnose für das spätere Item-Icon: listet Klassen der Fabric-Module mit "Item" oder "Special" im Namen. */
+    /** Diagnose für den Umriss des angezielten Bits: schreibt die Methoden der Level-Render-Ereignisse ins Log. */
     private static void listApi() {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        dump("net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents", seen, 2);
+        dump("net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionEvents", seen, 2);
+    }
+
+    private static void dump(String name, java.util.Set<String> seen, int depth) {
+        if (depth < 0 || !seen.add(name)) return;
         try {
-            for (String id : new String[] {"fabric-model-loading-api-v1", "fabric-renderer-api-v1", "fabric-rendering-v1"}) {
-                var c = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(id);
-                if (c.isEmpty()) continue;
-                for (var root : c.get().getRootPaths()) {
-                    try (var w = java.nio.file.Files.walk(root)) {
-                        w.map(Object::toString)
-                            .filter(p -> p.endsWith(".class") && !p.contains("$") && (p.contains("Item") || p.contains("Special")) && !p.contains("/impl/") && !p.contains("/mixin/"))
-                            .forEach(p -> System.out.println("[minibits-api] " + id + " :: " + p));
-                    }
+            Class<?> c = Class.forName(name);
+            System.out.println("[minibits-api] class " + name);
+            for (var m : c.getDeclaredMethods()) {
+                System.out.println("[minibits-api]    " + m.toGenericString());
+                java.util.List<Class<?>> types = new java.util.ArrayList<>(java.util.Arrays.asList(m.getParameterTypes()));
+                types.add(m.getReturnType());
+                for (Class<?> t : types) {
+                    String n = t.getName();
+                    if (n.startsWith("net.fabricmc.fabric.api.client.rendering.v1.") || n.contains("Outline") || n.contains("ShapeRenderer")) dump(n, seen, depth - 1);
                 }
             }
+            for (Class<?> nested : c.getDeclaredClasses()) dump(nested.getName(), seen, depth - 1);
         } catch (Throwable t) {
-            System.out.println("[minibits-api] Fehler: " + t);
+            System.out.println("[minibits-api] Fehler bei " + name + ": " + t);
         }
     }
 

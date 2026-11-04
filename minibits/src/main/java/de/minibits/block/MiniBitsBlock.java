@@ -6,6 +6,9 @@ import de.minibits.core.GreedyMesher;
 import net.minecraft.core.BlockPos;
 import de.minibits.MiniBits;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BaseEntityBlock;
@@ -18,7 +21,37 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class MiniBitsBlock extends BaseEntityBlock {
 
-    public MiniBitsBlock(Properties properties) { super(properties); }
+    /** Leuchtkraft des Blocks (0-15), abgeleitet aus den enthaltenen Materialien. */
+    public static final IntegerProperty LIGHT = IntegerProperty.create("light", 0, 15);
+    /** Index des Geräuschtyps (Schritte, Abbau), abgeleitet vom häufigsten Material. */
+    public static final IntegerProperty SND = IntegerProperty.create("snd", 0, 15);
+
+    public static final SoundType[] SOUNDS = {
+        SoundType.STONE, SoundType.WOOD, SoundType.GRAVEL, SoundType.GRASS,
+        SoundType.SAND, SoundType.SNOW, SoundType.GLASS, SoundType.METAL,
+        SoundType.WOOL, SoundType.NETHERRACK, SoundType.BASALT, SoundType.BONE_BLOCK,
+        SoundType.DEEPSLATE, SoundType.TUFF, SoundType.COPPER, SoundType.AMETHYST
+    };
+
+    public static int soundIndexOf(SoundType type) {
+        for (int i = 0; i < SOUNDS.length; i++) if (SOUNDS[i] == type) return i;
+        return 0;
+    }
+
+    public MiniBitsBlock(Properties properties) {
+        super(properties);
+        registerDefaultState(stateDefinition.any().setValue(LIGHT, 0).setValue(SND, 0));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState> builder) {
+        builder.add(LIGHT, SND);
+    }
+
+    @Override
+    public SoundType getSoundType(BlockState state) {
+        return SOUNDS[state.getValue(SND)];
+    }
 
 
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
