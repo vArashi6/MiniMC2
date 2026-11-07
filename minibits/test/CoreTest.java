@@ -78,26 +78,33 @@ class CoreTest4 {
 
 class CoreTest5 {
     public static void main(String[] a) {
-        // Gitter aus zwei Schichten Kupfergitter (kind NONE): beide Innenflächen müssen bleiben
+        // Zwei Schichten gleiches Gitter (NONE) im selben Block: Innenflächen entfallen wie beim Originalblock
         BitGrid g = new BitGrid();
         g.fill(0,0,0,15,15,0,(short)1);
         g.fill(0,0,1,15,15,1,(short)1);
-        MeshMaterials grate = new MeshMaterials(new int[]{0, MeshMaterials.NONE}, new int[]{0, 7});
-        var f = GreedyMesher.mesh(g, grate, null, null);
-        int area = 0; for (var q : f) area += q.w()*q.h();
-        CoreTest.check(area == 6*256 - 4*0 + 2*256 - 2*0 - 0 || area == 8*256 - 0 || area > 6*256, "Gitter: Innenflächen bleiben (Fläche " + area + ")");
-        var solid = GreedyMesher.mesh(g);
-        int area2 = 0; for (var q : solid) area2 += q.w()*q.h();
-        CoreTest.check(area2 < area, "undurchsichtig: Innenflächen entfallen (" + area2 + " < " + area + ")");
-        // Glas: gleiche Nachbarn verdecken, andere nicht
-        BitGrid h = new BitGrid();
-        h.set(0,0,0,(short)1); h.set(1,0,0,(short)2);
-        MeshMaterials glass = new MeshMaterials(new int[]{0, MeshMaterials.SAME_ONLY, MeshMaterials.SAME_ONLY}, new int[]{0, 5, 6});
-        int fs = 0; for (var q : GreedyMesher.mesh(h, glass, null, null)) fs += q.w()*q.h();
-        CoreTest.check(fs == 12, "zwei verschiedene Gläser: alle 12 Flächen sichtbar (" + fs + ")");
-        BitGrid k = new BitGrid(); k.set(0,0,0,(short)1); k.set(1,0,0,(short)2);
-        MeshMaterials same = new MeshMaterials(new int[]{0, MeshMaterials.SAME_ONLY, MeshMaterials.SAME_ONLY}, new int[]{0, 5, 5});
-        int fs2 = 0; for (var q : GreedyMesher.mesh(k, same, null, null)) fs2 += q.w()*q.h();
-        CoreTest.check(fs2 == 10, "gleiches Glas: Innenflächen entfallen (" + fs2 + ")");
+        MeshMaterials leaves = new MeshMaterials(new int[]{0, MeshMaterials.NONE}, new int[]{0, 7});
+        int aLeaves = 0; for (var q : GreedyMesher.mesh(g, leaves, null, null)) aLeaves += q.w()*q.h();
+        int aSolid = 0; for (var q : GreedyMesher.mesh(g)) aSolid += q.w()*q.h();
+        CoreTest.check(aLeaves == aSolid, "gleiche Blätter im Block: wie undurchsichtig (" + aLeaves + " == " + aSolid + ")");
+
+        // Zwei verschiedene Ausschnitt-Materialien nebeneinander: Innenflächen bleiben
+        BitGrid h = new BitGrid(); h.set(0,0,0,(short)1); h.set(1,0,0,(short)2);
+        MeshMaterials two = new MeshMaterials(new int[]{0, MeshMaterials.NONE, MeshMaterials.NONE}, new int[]{0, 5, 6});
+        int f2 = 0; for (var q : GreedyMesher.mesh(h, two, null, null)) f2 += q.w()*q.h();
+        CoreTest.check(f2 == 12, "verschiedene Materialien: alle 12 Flächen (" + f2 + ")");
+
+        // Blätter über Blockgrenze hinweg: Flächen bleiben (wie zwei Blattblöcke nebeneinander)
+        BitGrid left = new BitGrid(), right = new BitGrid();
+        left.fill(0,0,0,15,15,15,(short)1); right.fill(0,0,0,15,15,15,(short)1);
+        BitGrid[] ng = new BitGrid[6]; ng[GreedyMesher.EAST] = right;
+        MeshMaterials[] nm = new MeshMaterials[6]; nm[GreedyMesher.EAST] = leaves;
+        int ea = 0; for (var q : GreedyMesher.mesh(left, leaves, ng, nm)) if (q.dir()==GreedyMesher.EAST) ea += q.w()*q.h();
+        CoreTest.check(ea == 256, "Blätter über Blockgrenze: Ostfläche bleibt (" + ea + ")");
+
+        // Glas: gleiches Glas verdeckt auch über die Blockgrenze
+        MeshMaterials glass = new MeshMaterials(new int[]{0, MeshMaterials.SAME_ONLY}, new int[]{0, 7});
+        MeshMaterials[] gm = new MeshMaterials[6]; gm[GreedyMesher.EAST] = glass;
+        int ga = 0; for (var q : GreedyMesher.mesh(left, glass, ng, gm)) if (q.dir()==GreedyMesher.EAST) ga += q.w()*q.h();
+        CoreTest.check(ga == 0, "gleiches Glas über Blockgrenze: Ostfläche entfällt (" + ga + ")");
     }
 }

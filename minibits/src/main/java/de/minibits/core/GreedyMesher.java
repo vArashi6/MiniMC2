@@ -61,7 +61,8 @@ public final class GreedyMesher {
                     MeshMaterials nmat;
                     if (BitGrid.inside(nx, ny, nz)) { next = g.get(nx, ny, nz); nmat = mat; }
                     else { next = ng != null ? ng.get(nx & 15, ny & 15, nz & 15) : 0; nmat = nm; }
-                    mask[a][b] = culls(here, mat, next, nmat) ? 0 : here;
+                    boolean sameGrid = BitGrid.inside(nx, ny, nz);
+                    mask[a][b] = culls(here, mat, next, nmat, sameGrid) ? 0 : here;
                 }
             for (int a = 0; a < BitGrid.N; a++)
                 for (int b = 0; b < BitGrid.N; b++) {
@@ -82,13 +83,16 @@ public final class GreedyMesher {
         }
     }
 
-    private static boolean culls(short here, MeshMaterials hm, short next, MeshMaterials nm) {
+    private static boolean culls(short here, MeshMaterials hm, short next, MeshMaterials nm, boolean sameGrid) {
         if (next == 0) return false;
         int kn = nm == null ? MeshMaterials.OPAQUE : nm.kind()[next];
-        if (kn == MeshMaterials.OPAQUE) return true;
-        int kh = hm == null ? MeshMaterials.OPAQUE : hm.kind()[here];
-        if (kh == MeshMaterials.SAME_ONLY && hm != null && nm != null) return hm.id()[here] == nm.id()[next];
-        return false;
+        if (kn == MeshMaterials.OPAQUE) return true;            // undurchsichtiger Nachbar verdeckt
+        if (hm == null || nm == null) return true;
+        boolean same = hm.id()[here] == nm.id()[next];
+        if (!same) return false;                               // anderes Material: Fläche bleibt sichtbar
+        int kh = hm.kind()[here];
+        if (kh == MeshMaterials.SAME_ONLY) return true;         // Glas, Gitter, Eis: gleiche Nachbarn verdecken immer
+        return sameGrid;                                        // Blätter u. ä.: innerhalb eines Mini-Blocks verdecken sie sich
     }
 
     /** Fasst belegte Bits zu möglichst wenigen Quadern für die Kollisions-/Auswahlform zusammen. {x0,y0,z0,x1,y1,z1} in Bit-Einheiten. */

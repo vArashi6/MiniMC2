@@ -79,42 +79,54 @@ public final class MiniBitsModel {
             int pn = snap.palette().size() + 1;
             net.minecraft.client.resources.model.sprite.Material.Baked[] sprites = new net.minecraft.client.resources.model.sprite.Material.Baked[pn];
             boolean[] glowing = new boolean[pn];
+            boolean[] doubleSided = new boolean[pn];
             for (int i = 1; i < pn; i++) {
                 BlockState m = snap.palette().get(i - 1);
                 sprites[i] = models.get(m).particleMaterial();
                 glowing[i] = m.getLightEmission() > 0;
+                doubleSided[i] = !m.canOcclude(); // Gitter, Blätter, Glas: auch von innen/hinten sichtbar
             }
 
             for (GreedyMesher.Face f : snap.faces(neighbors)) {
                 Direction dir = DIRS[f.dir()];
                 int mi = f.material();
                 if (mi <= 0 || mi >= pn) continue;
-                var sprite = sprites[mi];
 
                 float p = f.plane() / 16f;
                 float a0 = f.a0() / 16f, a1 = (f.a0() + f.w()) / 16f;
                 float b0 = f.b0() / 16f, b1 = (f.b0() + f.h()) / 16f;
                 float[][] v = corners(f.dir(), p, a0, a1, b0, b1);
-                for (int i = 0; i < 4; i++) emitter.pos(i, v[i][0], v[i][1], v[i][2]);
-                for (int i = 0; i < 4; i++) {
-                    float fu, fv;
-                    switch (f.dir()) {
-                        case 0, 1 -> { fu = v[i][0]; fv = v[i][2]; }
-                        case 2, 3 -> { fu = v[i][0]; fv = 1f - v[i][1]; }
-                        default -> { fu = v[i][2]; fv = 1f - v[i][1]; }
-                    }
-                    emitter.uv(i, fu, fv);
+                Direction cull = isOnBoundary(f) ? dir : null; // nur am Blockrand nach außen culling erlauben
+
+                emitQuad(emitter, v, f.dir(), false, dir, cull, sprites[mi], glowing[mi], packedLight);
+                if (doubleSided[mi]) {
+                    // Gegenseite: Eckpunkte umgekehrt, damit man die Fläche auch von hinten sieht (wie beim Originalblock)
+                    emitQuad(emitter, v, f.dir(), true, dir.getOpposite(), cull, sprites[mi], glowing[mi], packedLight);
                 }
-                emitter.materialBake(sprite, MutableQuadView.BAKE_NORMALIZED);
-                emitter.nominalFace(dir);
-                // Nur am Blockrand nach außen culling erlauben
-                if (isOnBoundary(f)) emitter.cullFace(dir);
-                emitter.ambientOcclusion(net.fabricmc.fabric.api.util.TriState.FALSE);
-                emitter.minLightmap(packedLight);
-                emitter.emissive(glowing[mi]);
-                emitter.color(-1, -1, -1, -1);
-                emitter.emit();
             }
+        }
+
+        private static void emitQuad(QuadEmitter emitter, float[][] v, int dirIdx, boolean reversed, Direction nominal, Direction cull,
+                                     net.minecraft.client.resources.model.sprite.Material.Baked sprite, boolean glow, int packedLight) {
+            for (int k = 0; k < 4; k++) {
+                float[] c = v[reversed ? 3 - k : k];
+                emitter.pos(k, c[0], c[1], c[2]);
+                float fu, fv;
+                switch (dirIdx) {
+                    case 0, 1 -> { fu = c[0]; fv = c[2]; }
+                    case 2, 3 -> { fu = c[0]; fv = 1f - c[1]; }
+                    default -> { fu = c[2]; fv = 1f - c[1]; }
+                }
+                emitter.uv(k, fu, fv);
+            }
+            emitter.materialBake(sprite, MutableQuadView.BAKE_NORMALIZED);
+            emitter.nominalFace(nominal);
+            if (cull != null) emitter.cullFace(cull);
+            emitter.ambientOcclusion(net.fabricmc.fabric.api.util.TriState.FALSE);
+            emitter.minLightmap(packedLight);
+            emitter.emissive(glow);
+            emitter.color(-1, -1, -1, -1);
+            emitter.emit();
         }
 
         private static boolean isOnBoundary(GreedyMesher.Face f) {
