@@ -51,8 +51,6 @@ public final class MiniBitsModel {
     }
 
     public static final class Baked implements BlockStateModel {
-        private static final java.util.Set<BlockState> LOGGED = java.util.concurrent.ConcurrentHashMap.newKeySet();
-
         @Override
         public void emitQuads(QuadEmitter emitter, BlockAndTintGetter level, BlockPos pos, BlockState state,
                               RandomSource random, Predicate<Direction> cullTest) {
@@ -69,20 +67,29 @@ public final class MiniBitsModel {
             }
             int packedLight = (blk << 4) | (sky << 20);
 
-            // Angrenzende Mini-Blöcke: Flächen zwischen zwei gefüllten Bits über die Blockgrenze hinweg weglassen
-            de.minibits.core.BitGrid[] neighbors = new de.minibits.core.BitGrid[6];
+            // Angrenzende Mini-Blöcke: Flächen über die Blockgrenze hinweg weglassen, wenn sie verdeckt sind
+            MiniBitsBlockEntity.Snapshot[] neighbors = new MiniBitsBlockEntity.Snapshot[6];
             for (int i = 0; i < 6; i++) {
                 if (level.getBlockEntityRenderData(pos.relative(DIRS[i])) instanceof MiniBitsBlockEntity.Snapshot ns) {
-                    neighbors[i] = ns.grid();
+                    neighbors[i] = ns;
                 }
             }
 
-            for (GreedyMesher.Face f : GreedyMesher.mesh(snap.grid(), neighbors)) {
+            // Pro Material einmal nachschlagen statt pro Fläche
+            int pn = snap.palette().size() + 1;
+            net.minecraft.client.resources.model.sprite.Material.Baked[] sprites = new net.minecraft.client.resources.model.sprite.Material.Baked[pn];
+            boolean[] glowing = new boolean[pn];
+            for (int i = 1; i < pn; i++) {
+                BlockState m = snap.palette().get(i - 1);
+                sprites[i] = models.get(m).particleMaterial();
+                glowing[i] = m.getLightEmission() > 0;
+            }
+
+            for (GreedyMesher.Face f : snap.faces(neighbors)) {
                 Direction dir = DIRS[f.dir()];
-                BlockState mat = f.material() <= snap.palette().size() ? snap.palette().get(f.material() - 1) : null;
-                if (mat == null) continue;
-                var sprite = models.get(mat).particleMaterial();
-                if (LOGGED.add(mat)) System.out.println("[minibits-render] " + mat + " -> " + sprite);
+                int mi = f.material();
+                if (mi <= 0 || mi >= pn) continue;
+                var sprite = sprites[mi];
 
                 float p = f.plane() / 16f;
                 float a0 = f.a0() / 16f, a1 = (f.a0() + f.w()) / 16f;
@@ -104,7 +111,7 @@ public final class MiniBitsModel {
                 if (isOnBoundary(f)) emitter.cullFace(dir);
                 emitter.ambientOcclusion(net.fabricmc.fabric.api.util.TriState.FALSE);
                 emitter.minLightmap(packedLight);
-                emitter.emissive(mat.getLightEmission() > 0);
+                emitter.emissive(glowing[mi]);
                 emitter.color(-1, -1, -1, -1);
                 emitter.emit();
             }

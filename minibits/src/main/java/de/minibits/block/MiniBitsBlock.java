@@ -62,7 +62,7 @@ public class MiniBitsBlock extends BaseEntityBlock {
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
 
     @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        if (level.getBlockEntity(pos) instanceof MiniBitsBlockEntity be) return shapeOf(be.grid());
+        if (level.getBlockEntity(pos) instanceof MiniBitsBlockEntity be) return be.shape();
         return Shapes.block();
     }
 

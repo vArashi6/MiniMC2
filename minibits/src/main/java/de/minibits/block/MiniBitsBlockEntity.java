@@ -21,6 +21,8 @@ import java.util.List;
 /** Speichert 16x16x16 Bits. Palette: Index (1-basiert) -> BlockState. */
 public class MiniBitsBlockEntity extends BlockEntity {
     private final BitGrid grid = new BitGrid();
+    private volatile net.minecraft.world.phys.shapes.VoxelShape shapeCache;
+    private volatile Snapshot snapshotCache;
     private final List<BlockState> palette = new ArrayList<>();
 
     public MiniBitsBlockEntity(BlockPos pos, BlockState state) {
@@ -40,8 +42,24 @@ public class MiniBitsBlockEntity extends BlockEntity {
         return idx > 0 && idx <= palette.size() ? palette.get(idx - 1) : null;
     }
 
+    private void invalidateCaches() {
+        shapeCache = null;
+        snapshotCache = null;
+    }
+
+    /** Auswahl-/Kollisionsform, einmal berechnet und bis zur nächsten Änderung zwischengespeichert. */
+    public net.minecraft.world.phys.shapes.VoxelShape shape() {
+        net.minecraft.world.phys.shapes.VoxelShape s = shapeCache;
+        if (s == null) {
+            s = MiniBitsBlock.shapeOf(grid);
+            shapeCache = s;
+        }
+        return s;
+    }
+
     /** Nach jeder Änderung aufrufen: speichern + Client/Rendering aktualisieren. */
     public void changed() {
+        invalidateCaches();
         updateDerivedState();
         setChanged();
         if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
@@ -81,6 +99,7 @@ public class MiniBitsBlockEntity extends BlockEntity {
     @Override
     protected void loadAdditional(ValueInput in) {
         super.loadAdditional(in);
+        invalidateCaches();
         palette.clear();
         in.read("palette", BlockState.CODEC.listOf()).ifPresent(palette::addAll);
         grid.load(in.read("bits", Codec.INT.listOf()).map(l -> l.stream().mapToInt(Integer::intValue).toArray()).orElse(null));
@@ -137,10 +156,57 @@ public class MiniBitsBlockEntity extends BlockEntity {
         changed();
     }
 
-    /** Wird vom Fabric-Renderer im Chunk-Thread gelesen (unveränderlicher Schnappschuss). */
+    /** Wird vom Fabric-Renderer im Chunk-Thread gelesen (unveränderlicher Schnappschuss, zwischengespeichert). */
     public Snapshot getRenderData() {
-        return new Snapshot(grid.copy(), List.copyOf(palette));
+        Snapshot s = snapshotCache;
+        if (s == null) {
+            s = new Snapshot(grid.copy(), List.copyOf(palette));
+            snapshotCache = s;
+        }
+        return s;
     }
 
-    public record Snapshot(BitGrid grid, List<BlockState> palette) {}
+    /** Unveränderlicher Stand eines Mini-Blocks für das Rendering, inklusive zwischengespeichertem Flächennetz. */
+    public static final class Snapshot {
+        private final BitGrid grid;
+        private final List<BlockState> palette;
+        private final de.minibits.core.MeshMaterials materials;
+        private List<de.minibits.core.GreedyMesher.Face> faces;
+        private Snapshot[] faceNeighbors;
+
+        Snapshot(BitGrid grid, List<BlockState> palette) {
+            this.grid = grid;
+            this.palette = palette;
+            int n = palette.size() + 1;
+            int[] kind = new int[n];
+            int[] id = new int[n];
+            for (int i = 1; i < n; i++) {
+                BlockState st = palette.get(i - 1);
+                kind[i] = st.canOcclude() ? de.minibits.core.MeshMaterials.OPAQUE
+                    : (st.skipRendering(st, net.minecraft.core.Direction.NORTH)
+                        ? de.minibits.core.MeshMaterials.SAME_ONLY : de.minibits.core.MeshMaterials.NONE);
+                id[i] = net.minecraft.world.level.block.Block.BLOCK_STATE_REGISTRY.getId(st);
+            }
+            this.materials = new de.minibits.core.MeshMaterials(kind, id);
+        }
+
+        public BitGrid grid() { return grid; }
+        public List<BlockState> palette() { return palette; }
+
+        /** Flächennetz; wird neu berechnet, wenn sich einer der Nachbar-Schnappschüsse geändert hat. */
+        public synchronized List<de.minibits.core.GreedyMesher.Face> faces(Snapshot[] neighbors) {
+            if (faces != null && java.util.Arrays.equals(faceNeighbors, neighbors)) return faces;
+            BitGrid[] grids = new BitGrid[6];
+            de.minibits.core.MeshMaterials[] mats = new de.minibits.core.MeshMaterials[6];
+            for (int i = 0; i < 6; i++) {
+                if (neighbors[i] != null) {
+                    grids[i] = neighbors[i].grid;
+                    mats[i] = neighbors[i].materials;
+                }
+            }
+            faces = de.minibits.core.GreedyMesher.mesh(grid, materials, grids, mats);
+            faceNeighbors = neighbors.clone();
+            return faces;
+        }
+    }
 }

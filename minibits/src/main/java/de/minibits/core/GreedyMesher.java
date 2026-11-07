@@ -21,32 +21,47 @@ public final class GreedyMesher {
     };
 
     public static List<Face> mesh(BitGrid g) {
-        return mesh(g, null);
+        return mesh(g, null, null, null);
+    }
+
+    /** Wie {@link #mesh(BitGrid, MeshMaterials, BitGrid[], MeshMaterials[])}, alle Materialien undurchsichtig. */
+    public static List<Face> mesh(BitGrid g, BitGrid[] neighbors) {
+        return mesh(g, null, neighbors, null);
     }
 
     /**
-     * neighbors[dir] = Gitter des angrenzenden Mini-Blocks in dieser Richtung (oder null).
-     * Flächen, die an gefüllte Bits des Nachbarblocks grenzen, werden nicht erzeugt.
+     * mat = Materialeigenschaften dieses Blocks (null = alles undurchsichtig).
+     * neighbors[dir] / nMats[dir] = Gitter und Materialien des angrenzenden Mini-Blocks in dieser Richtung (oder null).
+     * Eine Fläche entfällt, wenn das Nachbar-Bit sie verdeckt (undurchsichtig, oder gleiches Glas-Material).
      */
-    public static List<Face> mesh(BitGrid g, BitGrid[] neighbors) {
+    public static List<Face> mesh(BitGrid g, MeshMaterials mat, BitGrid[] neighbors, MeshMaterials[] nMats) {
         List<Face> out = new ArrayList<>();
-        for (int dir = 0; dir < 6; dir++) meshDir(g, neighbors, dir, out);
+        for (int dir = 0; dir < 6; dir++) meshDir(g, mat, neighbors, nMats, dir, out);
         return out;
     }
 
-    private static void meshDir(BitGrid g, BitGrid[] neighbors, int dir, List<Face> out) {
+    private static void meshDir(BitGrid g, MeshMaterials mat, BitGrid[] neighbors, MeshMaterials[] nMats, int dir, List<Face> out) {
         int[] n = NORMAL[dir];
         short[][] mask = new short[BitGrid.N][BitGrid.N];
+        BitGrid ng = neighbors != null ? neighbors[dir] : null;
+        MeshMaterials nm = nMats != null ? nMats[dir] : null;
         for (int layer = 0; layer < BitGrid.N; layer++) {
             for (int a = 0; a < BitGrid.N; a++)
                 for (int b = 0; b < BitGrid.N; b++) {
-                    int[] p = toXYZ(dir, layer, a, b);
-                    short here = g.get(p[0], p[1], p[2]);
-                    int nx = p[0] + n[0], ny = p[1] + n[1], nz = p[2] + n[2];
+                    int x, y, z;
+                    switch (dir) {
+                        case DOWN, UP -> { x = a; y = layer; z = b; }
+                        case NORTH, SOUTH -> { x = a; y = b; z = layer; }
+                        default -> { x = layer; y = b; z = a; }
+                    }
+                    short here = g.get(x, y, z);
+                    if (here == 0) { mask[a][b] = 0; continue; }
+                    int nx = x + n[0], ny = y + n[1], nz = z + n[2];
                     short next;
-                    if (BitGrid.inside(nx, ny, nz)) next = g.get(nx, ny, nz);
-                    else next = (neighbors != null && neighbors[dir] != null) ? neighbors[dir].get(nx & 15, ny & 15, nz & 15) : 0;
-                    mask[a][b] = (here != 0 && next == 0) ? here : 0;
+                    MeshMaterials nmat;
+                    if (BitGrid.inside(nx, ny, nz)) { next = g.get(nx, ny, nz); nmat = mat; }
+                    else { next = ng != null ? ng.get(nx & 15, ny & 15, nz & 15) : 0; nmat = nm; }
+                    mask[a][b] = culls(here, mat, next, nmat) ? 0 : here;
                 }
             for (int a = 0; a < BitGrid.N; a++)
                 for (int b = 0; b < BitGrid.N; b++) {
@@ -67,12 +82,13 @@ public final class GreedyMesher {
         }
     }
 
-    private static int[] toXYZ(int dir, int layer, int a, int b) {
-        return switch (dir) {
-            case DOWN, UP -> new int[] {a, layer, b};
-            case NORTH, SOUTH -> new int[] {a, b, layer};
-            default -> new int[] {layer, b, a};
-        };
+    private static boolean culls(short here, MeshMaterials hm, short next, MeshMaterials nm) {
+        if (next == 0) return false;
+        int kn = nm == null ? MeshMaterials.OPAQUE : nm.kind()[next];
+        if (kn == MeshMaterials.OPAQUE) return true;
+        int kh = hm == null ? MeshMaterials.OPAQUE : hm.kind()[here];
+        if (kh == MeshMaterials.SAME_ONLY && hm != null && nm != null) return hm.id()[here] == nm.id()[next];
+        return false;
     }
 
     /** Fasst belegte Bits zu möglichst wenigen Quadern für die Kollisions-/Auswahlform zusammen. {x0,y0,z0,x1,y1,z1} in Bit-Einheiten. */
