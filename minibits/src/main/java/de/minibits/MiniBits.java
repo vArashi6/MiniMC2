@@ -130,6 +130,9 @@ public class MiniBits implements ModInitializer {
                         if (block == MINI_BLOCK || block.asItem() == Items.AIR || !BitItem.isUsable(s)) continue;
                         output.accept(bitStack(s));
                     }
+                    // Flüssigkeiten haben kein eigenes Item, deshalb extra
+                    output.accept(bitStack(Blocks.WATER.defaultBlockState()));
+                    output.accept(bitStack(Blocks.LAVA.defaultBlockState()));
                 })
                 .build());
 
@@ -169,7 +172,7 @@ public class MiniBits implements ModInitializer {
             UndoHistory.push(player, log);
             if (hitMaterial != null) {
                 net.minecraft.world.level.block.SoundType sound = hitMaterial.getSoundType();
-                level.playSound(null, pos, sound.getBreakSound(), net.minecraft.sounds.SoundSource.BLOCKS,
+                level.playSound(null, pos, breakSoundOf(hitMaterial), net.minecraft.sounds.SoundSource.BLOCKS,
                     (sound.getVolume() + 1.0f) / 2.0f, sound.getPitch() * 0.8f);
             }
             if (mini.grid().isEmpty()) level.removeBlock(pos, false);
@@ -181,11 +184,31 @@ public class MiniBits implements ModInitializer {
         return Math.max(0, Math.min(15, (int) Math.floor(v)));
     }
 
+    /** Item, das für ein Material gezeichnet wird (Eimer für Wasser/Lava, sonst das Block-Item). */
+    public static Item iconItemOf(BlockState state) {
+        if (state.is(Blocks.WATER)) return Items.WATER_BUCKET;
+        if (state.is(Blocks.LAVA)) return Items.LAVA_BUCKET;
+        return state.getBlock().asItem();
+    }
+
+    public static net.minecraft.sounds.SoundEvent placeSoundOf(BlockState state) {
+        if (state.is(Blocks.WATER)) return net.minecraft.sounds.SoundEvents.BUCKET_EMPTY;
+        if (state.is(Blocks.LAVA)) return net.minecraft.sounds.SoundEvents.BUCKET_EMPTY_LAVA;
+        return state.getSoundType().getPlaceSound();
+    }
+
+    public static net.minecraft.sounds.SoundEvent breakSoundOf(BlockState state) {
+        if (state.is(Blocks.WATER)) return net.minecraft.sounds.SoundEvents.BUCKET_FILL;
+        if (state.is(Blocks.LAVA)) return net.minecraft.sounds.SoundEvents.BUCKET_FILL_LAVA;
+        return state.getSoundType().getBreakSound();
+    }
+
     public static ItemStack bitStack(BlockState state) {
         ItemStack stack = new ItemStack(BIT_ITEM);
         stack.set(BIT_STATE, state);
-        // Inventar-Symbol: das Item-Modell des jeweiligen Blocks
-        stack.set(DataComponents.ITEM_MODEL, BuiltInRegistries.BLOCK.getKey(state.getBlock()));
+        // Inventar-Symbol: Item-Modell des Blocks (bei Wasser/Lava der Eimer)
+        Item icon = iconItemOf(state);
+        if (icon != Items.AIR) stack.set(DataComponents.ITEM_MODEL, BuiltInRegistries.ITEM.getKey(icon));
         return stack;
     }
 }

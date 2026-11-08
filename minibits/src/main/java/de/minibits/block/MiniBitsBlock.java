@@ -67,6 +67,7 @@ public class MiniBitsBlock extends BaseEntityBlock {
     }
 
     @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
+        if (level.getBlockEntity(pos) instanceof MiniBitsBlockEntity be) return be.collisionShape();
         return getShape(state, level, pos, ctx);
     }
 

@@ -22,6 +22,7 @@ import java.util.List;
 public class MiniBitsBlockEntity extends BlockEntity {
     private final BitGrid grid = new BitGrid();
     private volatile net.minecraft.world.phys.shapes.VoxelShape shapeCache;
+    private volatile net.minecraft.world.phys.shapes.VoxelShape collisionCache;
     private volatile Snapshot snapshotCache;
     private final List<BlockState> palette = new ArrayList<>();
 
@@ -44,6 +45,7 @@ public class MiniBitsBlockEntity extends BlockEntity {
 
     private void invalidateCaches() {
         shapeCache = null;
+        collisionCache = null;
         snapshotCache = null;
     }
 
@@ -53,6 +55,25 @@ public class MiniBitsBlockEntity extends BlockEntity {
         if (s == null) {
             s = MiniBitsBlock.shapeOf(grid);
             shapeCache = s;
+        }
+        return s;
+    }
+
+    /** Kollisionsform: wie die Auswahlform, aber Wasser und Lava sind nicht fest (man läuft hindurch). */
+    public net.minecraft.world.phys.shapes.VoxelShape collisionShape() {
+        net.minecraft.world.phys.shapes.VoxelShape s = collisionCache;
+        if (s == null) {
+            BitGrid solid = grid.copy();
+            short[] raw = solid.raw();
+            boolean anyFluid = false;
+            for (int i = 0; i < raw.length; i++) {
+                if (raw[i] > 0 && raw[i] <= palette.size() && !palette.get(raw[i] - 1).getFluidState().isEmpty()) {
+                    raw[i] = 0;
+                    anyFluid = true;
+                }
+            }
+            s = anyFluid ? MiniBitsBlock.shapeOf(solid) : shape();
+            collisionCache = s;
         }
         return s;
     }

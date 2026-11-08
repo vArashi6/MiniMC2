@@ -80,11 +80,13 @@ public final class MiniBitsModel {
             net.minecraft.client.resources.model.sprite.Material.Baked[] sprites = new net.minecraft.client.resources.model.sprite.Material.Baked[pn];
             boolean[] glowing = new boolean[pn];
             boolean[] doubleSided = new boolean[pn];
+            boolean[] water = new boolean[pn];
             for (int i = 1; i < pn; i++) {
                 BlockState m = snap.palette().get(i - 1);
                 sprites[i] = models.get(m).particleMaterial();
                 glowing[i] = m.getLightEmission() > 0;
                 doubleSided[i] = !m.canOcclude(); // Gitter, Blätter, Glas: auch von innen/hinten sichtbar
+                water[i] = m.is(net.minecraft.world.level.block.Blocks.WATER);
             }
 
             for (GreedyMesher.Face f : snap.faces(neighbors)) {
@@ -98,16 +100,16 @@ public final class MiniBitsModel {
                 float[][] v = corners(f.dir(), p, a0, a1, b0, b1);
                 Direction cull = isOnBoundary(f) ? dir : null; // nur am Blockrand nach außen culling erlauben
 
-                emitQuad(emitter, v, f.dir(), false, dir, cull, sprites[mi], glowing[mi], packedLight);
+                emitQuad(emitter, v, f.dir(), false, dir, cull, sprites[mi], glowing[mi], packedLight, water[mi]);
                 if (doubleSided[mi]) {
                     // Gegenseite: Eckpunkte umgekehrt, damit man die Fläche auch von hinten sieht (wie beim Originalblock)
-                    emitQuad(emitter, v, f.dir(), true, dir.getOpposite(), cull, sprites[mi], glowing[mi], packedLight);
+                    emitQuad(emitter, v, f.dir(), true, dir.getOpposite(), cull, sprites[mi], glowing[mi], packedLight, water[mi]);
                 }
             }
         }
 
         private static void emitQuad(QuadEmitter emitter, float[][] v, int dirIdx, boolean reversed, Direction nominal, Direction cull,
-                                     net.minecraft.client.resources.model.sprite.Material.Baked sprite, boolean glow, int packedLight) {
+                                     net.minecraft.client.resources.model.sprite.Material.Baked sprite, boolean glow, int packedLight, boolean water) {
             for (int k = 0; k < 4; k++) {
                 float[] c = v[reversed ? 3 - k : k];
                 emitter.pos(k, c[0], c[1], c[2]);
@@ -125,7 +127,13 @@ public final class MiniBitsModel {
             emitter.ambientOcclusion(net.fabricmc.fabric.api.util.TriState.FALSE);
             emitter.minLightmap(packedLight);
             emitter.emissive(glow);
-            emitter.color(-1, -1, -1, -1);
+            if (water) {
+                emitter.chunkLayer(net.minecraft.client.renderer.chunk.ChunkSectionLayer.TRANSLUCENT);
+                int c = 0xFF3F76E4; // Standard-Wasserfarbe
+                emitter.color(c, c, c, c);
+            } else {
+                emitter.color(-1, -1, -1, -1);
+            }
             emitter.emit();
         }
 

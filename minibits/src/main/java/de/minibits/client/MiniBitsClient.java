@@ -19,7 +19,7 @@ public class MiniBitsClient implements ClientModInitializer {
     public void onInitializeClient() {
         // Registriert den eigenen Blockstate-Modelltyp "minibits:mini_bits"
         MiniBitsModel.register();
-        System.out.println("[minibits-build] Version 10 (Ausrichtung, Rückgängig, Icons)");
+        System.out.println("[minibits-build] Version 11 (Wasser, Lava)");
 
         MiniBitsKeys.register();
         listApi();
@@ -44,7 +44,7 @@ public class MiniBitsClient implements ClientModInitializer {
                 // Bit: links der Originalblock, rechts daneben klein die Mini-Version
                 var material = stack.get(de.minibits.MiniBits.BIT_STATE);
                 if (material == null) return;
-                net.minecraft.world.item.ItemStack blockStack = new net.minecraft.world.item.ItemStack(material.getBlock().asItem());
+                net.minecraft.world.item.ItemStack blockStack = new net.minecraft.world.item.ItemStack(de.minibits.MiniBits.iconItemOf(material));
                 if (blockStack.isEmpty()) return;
                 graphics.fill(x, y, x + 16, y + 16, 0xFF2B2B2B);
                 var pose = graphics.pose();

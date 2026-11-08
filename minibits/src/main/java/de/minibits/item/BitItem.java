@@ -92,7 +92,7 @@ public class BitItem extends Item {
         if (placed == 0) return InteractionResult.FAIL;
         if (player instanceof net.minecraft.server.level.ServerPlayer sp) de.minibits.UndoHistory.push(sp, log);
         net.minecraft.world.level.block.SoundType sound = material.getSoundType();
-        level.playSound(null, net.minecraft.core.BlockPos.containing(hit), sound.getPlaceSound(),
+        level.playSound(null, net.minecraft.core.BlockPos.containing(hit), MiniBits.placeSoundOf(material),
             net.minecraft.sounds.SoundSource.BLOCKS, (sound.getVolume() + 1.0f) / 2.0f, sound.getPitch() * 0.8f);
         boolean creative = player != null && player.getAbilities().instabuild;
         if (!creative) stack.shrink(1);
