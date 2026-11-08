@@ -43,7 +43,7 @@ public final class MiniBitsHud {
 
         if (whole) {
             g.fill(x0 - 4, y0 - 4, x0 + 90, y0 + 14, 0xAA000000);
-            g.text(font, "Drehung " + (rotation * 90) + "°", x0, y0, 0xFFFFFFFF, true);
+            g.text(font, "Drehung +" + (rotation * 90) + "° (zur Blickrichtung)", x0, y0, 0xFFFFFFFF, true);
             return;
         }
 
@@ -57,10 +57,11 @@ public final class MiniBitsHud {
             int color = k == 0 ? 0xFFFFFF55 : (Math.abs(k) == 1 ? 0xFFBBBBBB : 0xFF777777);
             g.text(font, (k == 0 ? "> " : "  ") + name, x0, y0 + (k + 2) * 11, color, true);
         }
-        g.text(font, "Drehung " + (rotation * 90) + "°", x0, y0 + 62, 0xFF55FFFF, true);
+        g.text(font, "Drehung +" + (rotation * 90) + "° (zur Blickrichtung)", x0, y0 + 62, 0xFF55FFFF, true);
 
         // Vorschau: Oben (x,z), Vorne (x,y), Seite (z,y)
-        int[] d = ShapePreset.dims(preset, rotation);
+        int facing = (mc.player.getDirection().get2DDataValue() + 2) & 3;
+        int[] d = ShapePreset.dims(preset, (rotation + facing) & 3);
         int S = 2;
         int px = x0 + 108;
         int py = y0;

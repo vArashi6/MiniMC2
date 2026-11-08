@@ -64,7 +64,9 @@ public class BitItem extends Item {
         int[] step = {face.getStepX(), face.getStepY(), face.getStepZ()};
 
         int[] st = MiniBits.settingsOf(player);
-        int[] dims = de.minibits.core.ShapePreset.dims(st[0], st[1]);
+        // Ausrichtung wie bei Treppen: nach Blickrichtung, zusätzlich um die manuelle Drehung verschoben
+        int rot = (st[1] + MiniBits.facingRotation(player)) & 3;
+        int[] dims = de.minibits.core.ShapePreset.dims(st[0], rot);
         boolean snap = player != null && player.isShiftKeyDown(); // Shift: am Raster einrasten
 
         int[] lo = new int[3];
@@ -85,8 +87,10 @@ public class BitItem extends Item {
             hi[i] = start + size - 1;
         }
 
-        int placed = placeBox(level, lo, hi, material);
+        java.util.List<de.minibits.UndoHistory.Cell> log = new java.util.ArrayList<>();
+        int placed = placeBox(level, lo, hi, material, log);
         if (placed == 0) return InteractionResult.FAIL;
+        if (player instanceof net.minecraft.server.level.ServerPlayer sp) de.minibits.UndoHistory.push(sp, log);
         net.minecraft.world.level.block.SoundType sound = material.getSoundType();
         level.playSound(null, net.minecraft.core.BlockPos.containing(hit), sound.getPlaceSound(),
             net.minecraft.sounds.SoundSource.BLOCKS, (sound.getVolume() + 1.0f) / 2.0f, sound.getPitch() * 0.8f);
@@ -96,7 +100,7 @@ public class BitItem extends Item {
     }
 
     /** Setzt die Box (globale Bit-Koordinaten, inklusive) und legt dabei bei Bedarf Nachbar-Mini-Blöcke an. */
-    private static int placeBox(Level level, int[] lo, int[] hi, BlockState material) {
+    private static int placeBox(Level level, int[] lo, int[] hi, BlockState material, java.util.List<de.minibits.UndoHistory.Cell> log) {
         int total = 0;
         for (int bx = Math.floorDiv(lo[0], 16); bx <= Math.floorDiv(hi[0], 16); bx++)
             for (int by = Math.floorDiv(lo[1], 16); by <= Math.floorDiv(hi[1], 16); by++)
@@ -114,7 +118,15 @@ public class BitItem extends Item {
                     if (!wasMini) level.setBlock(bp, MiniBits.MINI_BLOCK.defaultBlockState(), 3);
                     if (!(level.getBlockEntity(bp) instanceof MiniBitsBlockEntity be)) continue;
                     short idx = be.paletteIndex(material);
-                    int n = be.grid().fillEmpty(x0, y0, z0, x1, y1, z1, idx);
+                    int n = 0;
+                    for (int x = x0; x <= x1; x++)
+                        for (int y = y0; y <= y1; y++)
+                            for (int z = z0; z <= z1; z++) {
+                                if (be.grid().get(x, y, z) != 0) continue;
+                                be.grid().set(x, y, z, idx);
+                                log.add(new de.minibits.UndoHistory.Cell(bp, de.minibits.UndoHistory.index(x, y, z), null, material));
+                                n++;
+                            }
                     if (n > 0) {
                         be.changed();
                         total += n;

@@ -61,12 +61,20 @@ public class MiniBits implements ModInitializer {
         return SETTINGS.getOrDefault(player.getUUID(), new int[] {0, 0});
     }
 
+    /** Viertelumdrehungen aus der Blickrichtung: Norden = 0, Osten = 1, Süden = 2, Westen = 3. */
+    public static int facingRotation(Player player) {
+        if (player == null) return 0;
+        return (player.getDirection().get2DDataValue() + 2) & 3;
+    }
+
     public static void setSettings(Player player, int[] st) {
         SETTINGS.put(player.getUUID(), st);
     }
 
-    /** 0 = nächste Form, 1 = vorherige Form, 2 = um 90° drehen, 3 = zurück auf 1x1x1 ohne Drehung. Schickt den neuen Zustand an den Spieler. */
+    /** 0 = nächste Form, 1 = vorherige Form, 2 = um 90° drehen, 3 = zurück auf 1x1x1 ohne Drehung, 4 = rückgängig, 5 = wiederholen. Schickt den neuen Zustand an den Spieler. */
     public static void applyCommand(net.minecraft.server.level.ServerPlayer player, int cmd) {
+        if (cmd == 4) { UndoHistory.undo(player); return; }
+        if (cmd == 5) { UndoHistory.redo(player); return; }
         int[] st = settingsOf(player).clone();
         int n = ShapePreset.count();
         if (cmd == 0) st[0] = (st[0] + 1) % n;
@@ -144,10 +152,21 @@ public class MiniBits implements ModInitializer {
             if (player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > 64) return;
             if (!(level.getBlockEntity(pos) instanceof MiniBitsBlockEntity mini)) return;
             int[] st = settingsOf(player);
+            int rot = (st[1] + facingRotation(player)) & 3;
             int[] box = payload.all() ? new int[] {0, 0, 0, 15, 15, 15}
-                : ShapePreset.box(st[0], 0, clampBit(payload.bx()), clampBit(payload.by()), clampBit(payload.bz()));
+                : ShapePreset.box(st[0], rot, clampBit(payload.bx()), clampBit(payload.by()), clampBit(payload.bz()));
             BlockState hitMaterial = mini.stateAt(mini.grid().get(clampBit(payload.bx()), clampBit(payload.by()), clampBit(payload.bz())));
-            mini.grid().clearBox(box[0], box[1], box[2], box[3], box[4], box[5]);
+
+            java.util.List<UndoHistory.Cell> log = new java.util.ArrayList<>();
+            for (int x = box[0]; x <= box[3]; x++)
+                for (int y = box[1]; y <= box[4]; y++)
+                    for (int z = box[2]; z <= box[5]; z++) {
+                        short v = mini.grid().get(x, y, z);
+                        if (v == 0) continue;
+                        log.add(new UndoHistory.Cell(pos, UndoHistory.index(x, y, z), mini.stateAt(v), null));
+                        mini.grid().set(x, y, z, (short) 0);
+                    }
+            UndoHistory.push(player, log);
             if (hitMaterial != null) {
                 net.minecraft.world.level.block.SoundType sound = hitMaterial.getSoundType();
                 level.playSound(null, pos, sound.getBreakSound(), net.minecraft.sounds.SoundSource.BLOCKS,

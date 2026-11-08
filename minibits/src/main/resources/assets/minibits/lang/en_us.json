@@ -5,5 +5,7 @@
   "itemGroup.minibits.main": "Mini Bits",
   "key.minibits.menu": "Shape menu (hold)",
   "key.minibits.next": "Next shape",
-  "key.minibits.rotate": "Rotate (90°)"
+  "key.minibits.rotate": "Rotate (90°)",
+  "key.minibits.undo": "Undo",
+  "key.minibits.redo": "Redo"
 }

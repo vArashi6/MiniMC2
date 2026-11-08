@@ -19,8 +19,9 @@ public class MiniBitsClient implements ClientModInitializer {
     public void onInitializeClient() {
         // Registriert den eigenen Blockstate-Modelltyp "minibits:mini_bits"
         MiniBitsModel.register();
-        System.out.println("[minibits-build] Version 9 (Leuchten, Sound, Icon 3D)");
+        System.out.println("[minibits-build] Version 10 (Ausrichtung, Rückgängig, Icons)");
 
+        MiniBitsKeys.register();
         listApi();
 
         // Von der bloßen Hand (oder einem anderen Item) auf ein Bit wechseln: wieder 1x1x1 ohne Drehung
@@ -37,8 +38,29 @@ public class MiniBitsClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(StatePayload.TYPE,
             (payload, context) -> MiniBitsHud.setState(payload.preset(), payload.rotation()));
 
-        // Inventar-Symbol kopierter Mini-Blöcke: Vorderansicht als Pixelbild über das Standard-Symbol zeichnen
+        // Inventar-Symbole
         net.fabricmc.fabric.api.client.rendering.v1.ExtractItemDecorationsCallback.EVENT.register((graphics, font, stack, x, y) -> {
+            if (stack.getItem() instanceof BitItem) {
+                // Bit: links der Originalblock, rechts daneben klein die Mini-Version
+                var material = stack.get(de.minibits.MiniBits.BIT_STATE);
+                if (material == null) return;
+                net.minecraft.world.item.ItemStack blockStack = new net.minecraft.world.item.ItemStack(material.getBlock().asItem());
+                if (blockStack.isEmpty()) return;
+                graphics.fill(x, y, x + 16, y + 16, 0xFF2B2B2B);
+                var pose = graphics.pose();
+                pose.pushMatrix();
+                pose.translate(x + 0.5f, y + 2.5f);
+                pose.scale(0.62f, 0.62f);
+                graphics.item(blockStack, 0, 0);
+                pose.popMatrix();
+                pose.pushMatrix();
+                pose.translate(x + 10.5f, y + 7.5f);
+                pose.scale(0.34f, 0.34f);
+                graphics.item(blockStack, 0, 0);
+                pose.popMatrix();
+                return;
+            }
+            // Kopierter Mini-Block: Vorschaubild mit drei Seiten
             if (!(stack.getItem() instanceof de.minibits.item.MiniBlockItem)) return;
             var icon = stack.get(de.minibits.MiniBits.MINI_ICON);
             if (icon == null || icon.size() < 256) return;

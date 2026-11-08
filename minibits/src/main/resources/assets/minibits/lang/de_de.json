@@ -5,5 +5,7 @@
   "itemGroup.minibits.main": "Mini Bits",
   "key.minibits.menu": "Form-Menü (halten)",
   "key.minibits.next": "Nächste Form",
-  "key.minibits.rotate": "Drehen (90°)"
+  "key.minibits.rotate": "Drehen (90°)",
+  "key.minibits.undo": "Rückgängig",
+  "key.minibits.redo": "Wiederholen"
 }

@@ -31,7 +31,17 @@ public class MiniBlockItem extends BlockItem {
         if (ok && !context.getLevel().isClientSide()) {
             MiniData data = context.getItemInHand().get(MiniBits.MINI_DATA);
             if (data != null && context.getLevel().getBlockEntity(context.getClickedPos()) instanceof MiniBitsBlockEntity be) {
-                be.applyData(data, MiniBits.settingsOf(context.getPlayer())[1]);
+                // Vorderseite (+Z) zeigt zum Spieler, zusätzlich um die manuelle Drehung verschoben
+                int rot = (MiniBits.settingsOf(context.getPlayer())[1] + MiniBits.facingRotation(context.getPlayer())) & 3;
+                be.applyData(data, rot);
+                if (context.getPlayer() instanceof net.minecraft.server.level.ServerPlayer sp) {
+                    java.util.List<de.minibits.UndoHistory.Cell> log = new java.util.ArrayList<>();
+                    short[] raw = be.grid().raw();
+                    for (int i = 0; i < raw.length; i++) {
+                        if (raw[i] != 0) log.add(new de.minibits.UndoHistory.Cell(context.getClickedPos(), i, null, be.stateAt(raw[i])));
+                    }
+                    de.minibits.UndoHistory.push(sp, log);
+                }
             }
         }
         return ok;
