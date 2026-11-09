@@ -13,16 +13,30 @@ import net.minecraft.client.Minecraft;
 
 public class MiniBitsClient implements ClientModInitializer {
     private static long lastRemoveMs = 0;
+    private static long lastRotateMs = 0;
     private static boolean prevWasBit = true;
 
     @Override
     public void onInitializeClient() {
         // Registriert den eigenen Blockstate-Modelltyp "minibits:mini_bits"
         MiniBitsModel.register();
-        System.out.println("[minibits-build] Version 11 (Wasser, Lava)");
+        System.out.println("[minibits-build] Version 12 (Verlangsamung, Dreh-Pause)");
 
         MiniBitsKeys.register();
         listApi();
+
+        // In Wasser-/Lava-Bits: verlangsamen und Fallschaden vermeiden (die Bewegung des Spielers wird im Client berechnet)
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            if (mc.player == null || mc.level == null) return;
+            int contact = de.minibits.MiniBits.fluidContact(mc.level, mc.player.getBoundingBox());
+            if (contact == 0) return;
+            mc.player.resetFallDistance();
+            if ((contact & 2) != 0) {
+                mc.player.makeStuckInBlock(net.minecraft.world.level.block.Blocks.LAVA.defaultBlockState(), new net.minecraft.world.phys.Vec3(0.5, 0.5, 0.5));
+            } else {
+                mc.player.makeStuckInBlock(net.minecraft.world.level.block.Blocks.WATER.defaultBlockState(), new net.minecraft.world.phys.Vec3(0.8, 0.8, 0.8));
+            }
+        });
 
         // Von der bloßen Hand (oder einem anderen Item) auf ein Bit wechseln: wieder 1x1x1 ohne Drehung
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(mc -> {
@@ -97,7 +111,11 @@ public class MiniBitsClient implements ClientModInitializer {
         ClientPreAttackCallback.EVENT.register((client, player, clickCount) -> {
             if (!(player.getMainHandItem().getItem() instanceof BitItem)) return false;
             if (client.hitResult != null && client.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS) return false;
-            ClientPlayNetworking.send(new CommandPayload(2));
+            long now = System.currentTimeMillis();
+            if (now - lastRotateMs >= 350) { // kleine Pause, damit gehaltenes Linksklicken nicht zu schnell dreht
+                lastRotateMs = now;
+                ClientPlayNetworking.send(new CommandPayload(2));
+            }
             return true;
         });
     }

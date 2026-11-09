@@ -85,6 +85,25 @@ public class MiniBits implements ModInitializer {
         ServerPlayNetworking.send(player, new StatePayload(st[0], st[1]));
     }
 
+    /** Bit 1 = Box berührt Wasser-Bits eines Mini-Blocks, Bit 2 = Lava-Bits. */
+    public static int fluidContact(net.minecraft.world.level.Level level, net.minecraft.world.phys.AABB box) {
+        int mask = 0;
+        int x0 = net.minecraft.util.Mth.floor(box.minX), x1 = net.minecraft.util.Mth.floor(box.maxX);
+        int y0 = net.minecraft.util.Mth.floor(box.minY), y1 = net.minecraft.util.Mth.floor(box.maxY);
+        int z0 = net.minecraft.util.Mth.floor(box.minZ), z1 = net.minecraft.util.Mth.floor(box.maxZ);
+        net.minecraft.core.BlockPos.MutableBlockPos p = new net.minecraft.core.BlockPos.MutableBlockPos();
+        for (int x = x0; x <= x1; x++)
+            for (int y = y0; y <= y1; y++)
+                for (int z = z0; z <= z1; z++) {
+                    p.set(x, y, z);
+                    if (level.getBlockEntity(p) instanceof MiniBitsBlockEntity be) {
+                        mask |= be.fluidContact(p, box);
+                        if (mask == 3) return 3;
+                    }
+                }
+        return mask;
+    }
+
     @Override
     public void onInitialize() {
         BIT_STATE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, id("bit_state"),
@@ -135,6 +154,17 @@ public class MiniBits implements ModInitializer {
                     output.accept(bitStack(Blocks.LAVA.defaultBlockState()));
                 })
                 .build());
+
+        // Wasser-/Lava-Bits: kein Fallschaden, Wasser löscht Feuer (Verlangsamung läuft im Client, weil dort die Bewegung berechnet wird)
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            for (net.minecraft.server.level.ServerPlayer sp : server.getPlayerList().getPlayers()) {
+                int contact = fluidContact(sp.level(), sp.getBoundingBox());
+                if (contact != 0) {
+                    sp.resetFallDistance();
+                    if ((contact & 1) != 0) sp.clearFire();
+                }
+            }
+        });
 
         // Netzwerk: Client schickt Kommandos (Form wechseln / drehen), Server antwortet mit dem aktuellen Zustand
         PayloadTypeRegistry.clientboundPlay().register(StatePayload.TYPE, StatePayload.CODEC);

@@ -78,6 +78,30 @@ public class MiniBitsBlockEntity extends BlockEntity {
         return s;
     }
 
+    /** Bit 1 = berührt Wasser-Bits, Bit 2 = berührt Lava-Bits (die Box ist in Weltkoordinaten). */
+    public int fluidContact(BlockPos pos, net.minecraft.world.phys.AABB box) {
+        boolean any = false;
+        for (BlockState st : palette) {
+            if (st.is(net.minecraft.world.level.block.Blocks.WATER) || st.is(net.minecraft.world.level.block.Blocks.LAVA)) { any = true; break; }
+        }
+        if (!any) return 0;
+        int x0 = Math.max(0, (int) Math.floor((box.minX - pos.getX()) * 16)), x1 = Math.min(15, (int) Math.ceil((box.maxX - pos.getX()) * 16) - 1);
+        int y0 = Math.max(0, (int) Math.floor((box.minY - pos.getY()) * 16)), y1 = Math.min(15, (int) Math.ceil((box.maxY - pos.getY()) * 16) - 1);
+        int z0 = Math.max(0, (int) Math.floor((box.minZ - pos.getZ()) * 16)), z1 = Math.min(15, (int) Math.ceil((box.maxZ - pos.getZ()) * 16) - 1);
+        int mask = 0;
+        for (int x = x0; x <= x1; x++)
+            for (int y = y0; y <= y1; y++)
+                for (int z = z0; z <= z1; z++) {
+                    short v = grid.get(x, y, z);
+                    if (v <= 0 || v > palette.size()) continue;
+                    BlockState st = palette.get(v - 1);
+                    if (st.is(net.minecraft.world.level.block.Blocks.WATER)) mask |= 1;
+                    else if (st.is(net.minecraft.world.level.block.Blocks.LAVA)) mask |= 2;
+                    if (mask == 3) return 3;
+                }
+        return mask;
+    }
+
     /** Nach jeder Änderung aufrufen: speichern + Client/Rendering aktualisieren. */
     public void changed() {
         invalidateCaches();
