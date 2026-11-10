@@ -81,6 +81,7 @@ public final class MiniBitsModel {
             boolean[] glowing = new boolean[pn];
             boolean[] doubleSided = new boolean[pn];
             boolean[] water = new boolean[pn];
+            int waterColor = ShaderDetect.active() ? 0xFF4978B0 : 0xFF3F76E4; // mit Shader: Farbton wie beim echten Wasser
             for (int i = 1; i < pn; i++) {
                 BlockState m = snap.palette().get(i - 1);
                 sprites[i] = models.get(m).particleMaterial();
@@ -100,16 +101,16 @@ public final class MiniBitsModel {
                 float[][] v = corners(f.dir(), p, a0, a1, b0, b1);
                 Direction cull = isOnBoundary(f) ? dir : null; // nur am Blockrand nach außen culling erlauben
 
-                emitQuad(emitter, v, f.dir(), false, dir, cull, sprites[mi], glowing[mi], packedLight, water[mi]);
+                emitQuad(emitter, v, f.dir(), false, dir, cull, sprites[mi], glowing[mi], packedLight, water[mi], waterColor);
                 if (doubleSided[mi]) {
                     // Gegenseite: Eckpunkte umgekehrt, damit man die Fläche auch von hinten sieht (wie beim Originalblock)
-                    emitQuad(emitter, v, f.dir(), true, dir.getOpposite(), cull, sprites[mi], glowing[mi], packedLight, water[mi]);
+                    emitQuad(emitter, v, f.dir(), true, dir.getOpposite(), cull, sprites[mi], glowing[mi], packedLight, water[mi], waterColor);
                 }
             }
         }
 
         private static void emitQuad(QuadEmitter emitter, float[][] v, int dirIdx, boolean reversed, Direction nominal, Direction cull,
-                                     net.minecraft.client.resources.model.sprite.Material.Baked sprite, boolean glow, int packedLight, boolean water) {
+                                     net.minecraft.client.resources.model.sprite.Material.Baked sprite, boolean glow, int packedLight, boolean water, int waterColor) {
             for (int k = 0; k < 4; k++) {
                 float[] c = v[reversed ? 3 - k : k];
                 emitter.pos(k, c[0], c[1], c[2]);
@@ -129,8 +130,7 @@ public final class MiniBitsModel {
             emitter.emissive(glow);
             if (water) {
                 emitter.chunkLayer(net.minecraft.client.renderer.chunk.ChunkSectionLayer.TRANSLUCENT);
-                int c = 0xFF3F76E4; // Standard-Wasserfarbe
-                emitter.color(c, c, c, c);
+                emitter.color(waterColor, waterColor, waterColor, waterColor);
             } else {
                 emitter.color(-1, -1, -1, -1);
             }

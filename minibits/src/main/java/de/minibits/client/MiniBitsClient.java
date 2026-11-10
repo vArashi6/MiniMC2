@@ -20,10 +20,10 @@ public class MiniBitsClient implements ClientModInitializer {
     public void onInitializeClient() {
         // Registriert den eigenen Blockstate-Modelltyp "minibits:mini_bits"
         MiniBitsModel.register();
-        System.out.println("[minibits-build] Version 12 (Verlangsamung, Dreh-Pause)");
+        System.out.println("[minibits-build] Version 13 (Umriss, Shader-Wasser)");
 
         MiniBitsKeys.register();
-        listApi();
+        MiniBitsOutline.register();
 
         // In Wasser-/Lava-Bits: verlangsamen und Fallschaden vermeiden (die Bewegung des Spielers wird im Client berechnet)
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(mc -> {
@@ -118,33 +118,6 @@ public class MiniBitsClient implements ClientModInitializer {
             }
             return true;
         });
-    }
-
-    /** Diagnose für den Umriss des angezielten Bits: schreibt die Methoden der Level-Render-Ereignisse ins Log. */
-    private static void listApi() {
-        java.util.Set<String> seen = new java.util.HashSet<>();
-        dump("net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents", seen, 2);
-        dump("net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionEvents", seen, 2);
-    }
-
-    private static void dump(String name, java.util.Set<String> seen, int depth) {
-        if (depth < 0 || !seen.add(name)) return;
-        try {
-            Class<?> c = Class.forName(name);
-            System.out.println("[minibits-api] class " + name);
-            for (var m : c.getDeclaredMethods()) {
-                System.out.println("[minibits-api]    " + m.toGenericString());
-                java.util.List<Class<?>> types = new java.util.ArrayList<>(java.util.Arrays.asList(m.getParameterTypes()));
-                types.add(m.getReturnType());
-                for (Class<?> t : types) {
-                    String n = t.getName();
-                    if (n.startsWith("net.fabricmc.fabric.api.client.rendering.v1.") || n.contains("Outline") || n.contains("ShapeRenderer")) dump(n, seen, depth - 1);
-                }
-            }
-            for (Class<?> nested : c.getDeclaredClasses()) dump(nested.getName(), seen, depth - 1);
-        } catch (Throwable t) {
-            System.out.println("[minibits-api] Fehler bei " + name + ": " + t);
-        }
     }
 
     private static int bit(double v) {

@@ -54,13 +54,7 @@ public class BitItem extends Item {
         Vec3 hit = ctx.getClickLocation();
         Player player = ctx.getPlayer();
 
-        // Angepeiltes Bit (globale Bit-Koordinaten), eine Zelle aus der Fläche heraus
-        double eps = 1.0 / 64.0;
-        int[] aim = {
-            (int) Math.floor((hit.x + face.getStepX() * eps) * 16),
-            (int) Math.floor((hit.y + face.getStepY() * eps) * 16),
-            (int) Math.floor((hit.z + face.getStepZ() * eps) * 16)
-        };
+        int[] aim = de.minibits.core.Placement.aim(hit.x, hit.y, hit.z, face.getStepX(), face.getStepY(), face.getStepZ());
         int[] step = {face.getStepX(), face.getStepY(), face.getStepZ()};
 
         int[] st = MiniBits.settingsOf(player);
@@ -68,24 +62,9 @@ public class BitItem extends Item {
         int rot = (st[1] + MiniBits.facingRotation(player)) & 3;
         int[] dims = de.minibits.core.ShapePreset.dims(st[0], rot);
         boolean snap = player != null && player.isShiftKeyDown(); // Shift: am Raster einrasten
-
-        int[] lo = new int[3];
-        int[] hi = new int[3];
-        for (int i = 0; i < 3; i++) {
-            int size = dims[i];
-            int start;
-            if (size >= 16) {
-                start = Math.floorDiv(aim[i], 16) * 16;           // ganzer Block auf dieser Achse
-            } else if (snap) {
-                start = Math.floorDiv(aim[i], size) * size;       // Raster
-            } else if (step[i] != 0) {
-                start = step[i] > 0 ? aim[i] : aim[i] - size + 1; // von der Fläche weg
-            } else {
-                start = aim[i] - size / 2;                        // quer dazu: um das Ziel zentriert (darf überstehen)
-            }
-            lo[i] = start;
-            hi[i] = start + size - 1;
-        }
+        int[][] box = de.minibits.core.Placement.box(aim, step, dims, snap);
+        int[] lo = box[0];
+        int[] hi = box[1];
 
         java.util.List<de.minibits.UndoHistory.Cell> log = new java.util.ArrayList<>();
         int placed = placeBox(level, lo, hi, material, log);

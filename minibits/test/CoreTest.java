@@ -108,3 +108,16 @@ class CoreTest5 {
         CoreTest.check(ga == 0, "gleiches Glas über Blockgrenze: Ostfläche entfällt (" + ga + ")");
     }
 }
+
+class CoreTest6 {
+    public static void main(String[] a) {
+        // Blick auf die Oberseite eines Blocks bei (0,0,0): Treffer oben, Fläche zeigt nach +Y
+        int[] aim = Placement.aim(0.53, 1.0, 0.53, 0, 1, 0);
+        CoreTest.check(aim[0] == 8 && aim[1] == 16 && aim[2] == 8, "Zielbit liegt eine Zelle über der Fläche: " + java.util.Arrays.toString(aim));
+        int[][] b = Placement.box(aim, new int[]{0,1,0}, ShapePreset.dims(2, 0), false);
+        CoreTest.check(b[0][1] == 16 && b[1][1] == 19, "4x4x4 steht auf der Fläche (y 16..19)");
+        CoreTest.check(b[0][0] == 6 && b[1][0] == 9, "4x4x4 ist um das Ziel zentriert (x 6..9)");
+        int[][] c = Placement.box(aim, new int[]{0,1,0}, ShapePreset.dims(2, 0), true);
+        CoreTest.check(c[0][0] == 8 && c[1][0] == 11, "Shift: rastet am Raster ein (x 8..11)");
+    }
+}
