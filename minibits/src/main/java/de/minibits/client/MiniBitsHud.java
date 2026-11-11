@@ -15,8 +15,6 @@ public final class MiniBitsHud {
     private static long changedAt = -100000L;
 
     public static int preset() { return preset; }
-
-    public static int preset() { return preset; }
     public static int rotation() { return rotation; }
 
     public static void setState(int p, int r) {
