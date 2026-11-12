@@ -7,5 +7,7 @@
   "key.minibits.next": "Next shape",
   "key.minibits.rotate": "Rotate (90°)",
   "key.minibits.undo": "Undo",
-  "key.minibits.redo": "Redo"
+  "key.minibits.redo": "Redo",
+  "item.minibits.bit.lava_hot": "Mini Bit: Lava (hot)",
+  "item.minibits.bit.lava_cold": "Mini Bit: Lava (harmless)"
 }

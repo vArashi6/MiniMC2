@@ -28,8 +28,10 @@ public class BitItem extends Item {
     @Override
     public Component getName(ItemStack stack) {
         BlockState s = stack.get(MiniBits.BIT_STATE);
-        return s == null ? super.getName(stack)
-            : Component.translatable("item.minibits.bit.of", s.getBlock().getName());
+        if (s == null) return super.getName(stack);
+        if (MiniBits.isHotLava(s)) return Component.translatable("item.minibits.bit.lava_hot");
+        if (s.is(net.minecraft.world.level.block.Blocks.LAVA)) return Component.translatable("item.minibits.bit.lava_cold");
+        return Component.translatable("item.minibits.bit.of", s.getBlock().getName());
     }
 
     /** Rechtsklick in die Luft: nächste Form. Shift + Rechtsklick in die Luft: vorherige Form. (Drehen: Linksklick in die Luft.) */

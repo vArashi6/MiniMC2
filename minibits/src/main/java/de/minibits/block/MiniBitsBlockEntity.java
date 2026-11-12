@@ -78,7 +78,7 @@ public class MiniBitsBlockEntity extends BlockEntity {
         return s;
     }
 
-    /** Bit 1 = berührt Wasser-Bits, Bit 2 = berührt Lava-Bits (die Box ist in Weltkoordinaten). */
+    /** Bit 1 = Wasser, Bit 2 = Lava, Bit 4 = heiße Lava (die Box ist in Weltkoordinaten). */
     public int fluidContact(BlockPos pos, net.minecraft.world.phys.AABB box) {
         boolean any = false;
         for (BlockState st : palette) {
@@ -96,8 +96,8 @@ public class MiniBitsBlockEntity extends BlockEntity {
                     if (v <= 0 || v > palette.size()) continue;
                     BlockState st = palette.get(v - 1);
                     if (st.is(net.minecraft.world.level.block.Blocks.WATER)) mask |= 1;
-                    else if (st.is(net.minecraft.world.level.block.Blocks.LAVA)) mask |= 2;
-                    if (mask == 3) return 3;
+                    else if (st.is(net.minecraft.world.level.block.Blocks.LAVA)) mask |= MiniBits.isHotLava(st) ? 6 : 2;
+                    if (mask == 7) return 7;
                 }
         return mask;
     }
@@ -127,10 +127,24 @@ public class MiniBitsBlockEntity extends BlockEntity {
         }
         int snd = best == 0 ? 0 : MiniBitsBlock.soundIndexOf(palette.get(best - 1).getSoundType());
 
+        // Überwiegende Flüssigkeit (mindestens die Hälfte aller belegten Bits)
+        int filled = 0, water = 0, lavaCold = 0, lavaHot = 0;
+        for (int i = 1; i < counts.length; i++) {
+            filled += counts[i];
+            BlockState ps = palette.get(i - 1);
+            if (ps.is(net.minecraft.world.level.block.Blocks.WATER)) water += counts[i];
+            else if (MiniBits.isHotLava(ps)) lavaHot += counts[i];
+            else if (ps.is(net.minecraft.world.level.block.Blocks.LAVA)) lavaCold += counts[i];
+        }
+        int fluid = 0;
+        int most = Math.max(water, Math.max(lavaCold, lavaHot));
+        if (filled > 0 && most * 2 >= filled) fluid = most == water ? 1 : (most == lavaHot ? 3 : 2);
+
         BlockState st = getBlockState();
-        if (!st.hasProperty(MiniBitsBlock.LIGHT) || !st.hasProperty(MiniBitsBlock.SND)) return;
-        if (st.getValue(MiniBitsBlock.LIGHT) != light || st.getValue(MiniBitsBlock.SND) != snd) {
-            level.setBlock(worldPosition, st.setValue(MiniBitsBlock.LIGHT, light).setValue(MiniBitsBlock.SND, snd), 3);
+        if (!st.hasProperty(MiniBitsBlock.LIGHT) || !st.hasProperty(MiniBitsBlock.SND) || !st.hasProperty(MiniBitsBlock.FLUID)) return;
+        if (st.getValue(MiniBitsBlock.LIGHT) != light || st.getValue(MiniBitsBlock.SND) != snd || st.getValue(MiniBitsBlock.FLUID) != fluid) {
+            level.setBlock(worldPosition, st.setValue(MiniBitsBlock.LIGHT, light).setValue(MiniBitsBlock.SND, snd)
+                .setValue(MiniBitsBlock.FLUID, fluid), 3);
         }
     }
 

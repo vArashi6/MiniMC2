@@ -7,5 +7,7 @@
   "key.minibits.next": "Nächste Form",
   "key.minibits.rotate": "Drehen (90°)",
   "key.minibits.undo": "Rückgängig",
-  "key.minibits.redo": "Wiederholen"
+  "key.minibits.redo": "Wiederholen",
+  "item.minibits.bit.lava_hot": "Mini-Bit: Lava (heiß)",
+  "item.minibits.bit.lava_cold": "Mini-Bit: Lava (ungefährlich)"
 }

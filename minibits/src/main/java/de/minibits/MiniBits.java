@@ -55,6 +55,7 @@ public class MiniBits implements ModInitializer {
 
     /** Pro Spieler (Server): {Preset, Drehung}. Wird vom Client per Paket gesetzt. */
     private static final Map<UUID, int[]> SETTINGS = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_CONTACT = new ConcurrentHashMap<>();
 
     public static int[] settingsOf(Player player) {
         if (player == null) return new int[] {0, 0};
@@ -85,7 +86,7 @@ public class MiniBits implements ModInitializer {
         ServerPlayNetworking.send(player, new StatePayload(st[0], st[1]));
     }
 
-    /** Bit 1 = Box berührt Wasser-Bits eines Mini-Blocks, Bit 2 = Lava-Bits. */
+    /** Bit 1 = Box berührt Wasser-Bits eines Mini-Blocks, Bit 2 = Lava-Bits, Bit 4 = heiße Lava. */
     public static int fluidContact(net.minecraft.world.level.Level level, net.minecraft.world.phys.AABB box) {
         int mask = 0;
         int x0 = net.minecraft.util.Mth.floor(box.minX), x1 = net.minecraft.util.Mth.floor(box.maxX);
@@ -98,7 +99,7 @@ public class MiniBits implements ModInitializer {
                     p.set(x, y, z);
                     if (level.getBlockEntity(p) instanceof MiniBitsBlockEntity be) {
                         mask |= be.fluidContact(p, box);
-                        if (mask == 3) return 3;
+                        if (mask == 7) return 7;
                     }
                 }
         return mask;
@@ -152,16 +153,26 @@ public class MiniBits implements ModInitializer {
                     // Flüssigkeiten haben kein eigenes Item, deshalb extra
                     output.accept(bitStack(Blocks.WATER.defaultBlockState()));
                     output.accept(bitStack(Blocks.LAVA.defaultBlockState()));
+                    output.accept(bitStack(hotLavaState()));
                 })
                 .build());
 
-        // Wasser-/Lava-Bits: kein Fallschaden, Wasser löscht Feuer (Verlangsamung läuft im Client, weil dort die Bewegung berechnet wird)
+        // Wasser-/Lava-Bits: kein Fallschaden, Wasser löscht Feuer, heiße Lava verbrennt, Platsch-Geräusch beim Eintauchen
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             for (net.minecraft.server.level.ServerPlayer sp : server.getPlayerList().getPlayers()) {
                 int contact = fluidContact(sp.level(), sp.getBoundingBox());
+                int previous = LAST_CONTACT.getOrDefault(sp.getUUID(), 0);
+                if (contact != 0 && previous == 0) {
+                    boolean fast = sp.fallDistance > 3.0;
+                    net.minecraft.sounds.SoundEvent sound = (contact & 2) != 0 ? net.minecraft.sounds.SoundEvents.LAVA_POP
+                        : (fast ? net.minecraft.sounds.SoundEvents.PLAYER_SPLASH_HIGH_SPEED : net.minecraft.sounds.SoundEvents.PLAYER_SPLASH);
+                    sp.level().playSound(null, sp.getX(), sp.getY(), sp.getZ(), sound, net.minecraft.sounds.SoundSource.PLAYERS, 1.0f, 1.0f);
+                }
+                LAST_CONTACT.put(sp.getUUID(), contact);
                 if (contact != 0) {
                     sp.resetFallDistance();
                     if ((contact & 1) != 0) sp.clearFire();
+                    if ((contact & 4) != 0) sp.lavaHurt();
                 }
             }
         });
@@ -214,10 +225,21 @@ public class MiniBits implements ModInitializer {
         return Math.max(0, Math.min(15, (int) Math.floor(v)));
     }
 
+    /** Heiße Lava (verhält sich wie das Original): Lava mit Füllstand 1. Füllstand 0 ist die ungefährliche Variante. */
+    public static boolean isHotLava(BlockState state) {
+        return state.is(Blocks.LAVA) && state.hasProperty(net.minecraft.world.level.block.LiquidBlock.LEVEL)
+            && state.getValue(net.minecraft.world.level.block.LiquidBlock.LEVEL) == 1;
+    }
+
+    public static BlockState hotLavaState() {
+        return Blocks.LAVA.defaultBlockState().setValue(net.minecraft.world.level.block.LiquidBlock.LEVEL, 1);
+    }
+
     /** Item, das für ein Material gezeichnet wird (Eimer für Wasser/Lava, sonst das Block-Item). */
     public static Item iconItemOf(BlockState state) {
         if (state.is(Blocks.WATER)) return Items.WATER_BUCKET;
-        if (state.is(Blocks.LAVA)) return Items.LAVA_BUCKET;
+        if (isHotLava(state)) return Items.LAVA_BUCKET;
+        if (state.is(Blocks.LAVA)) return Items.MAGMA_BLOCK; // ungefährliche Lava: anderes Symbol
         return state.getBlock().asItem();
     }
 

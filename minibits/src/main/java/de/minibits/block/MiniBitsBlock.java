@@ -25,6 +25,8 @@ public class MiniBitsBlock extends BaseEntityBlock {
     public static final IntegerProperty LIGHT = IntegerProperty.create("light", 0, 15);
     /** Index des Geräuschtyps (Schritte, Abbau), abgeleitet vom häufigsten Material. */
     public static final IntegerProperty SND = IntegerProperty.create("snd", 0, 15);
+    /** Überwiegende Flüssigkeit: 0 keine, 1 Wasser, 2 Lava (ungefährlich), 3 Lava (heiß). Für Shader-Pakete und Feuer-Ausbreitung. */
+    public static final IntegerProperty FLUID = IntegerProperty.create("fluid", 0, 3);
 
     public static final SoundType[] SOUNDS = {
         SoundType.STONE, SoundType.WOOD, SoundType.GRAVEL, SoundType.GRASS,
@@ -40,12 +42,37 @@ public class MiniBitsBlock extends BaseEntityBlock {
 
     public MiniBitsBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(LIGHT, 0).setValue(SND, 0));
+        registerDefaultState(stateDefinition.any().setValue(LIGHT, 0).setValue(SND, 0).setValue(FLUID, 0));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState> builder) {
-        builder.add(LIGHT, SND);
+        builder.add(LIGHT, SND, FLUID);
+    }
+
+    /** Heiße Lava breitet wie das Original Feuer aus (zufällige Ticks, nur wenn Heiße Lava überwiegt). */
+    @Override
+    protected boolean isRandomlyTicking(BlockState state) {
+        return state.getValue(FLUID) == 3;
+    }
+
+    @Override
+    protected void randomTick(BlockState state, net.minecraft.server.level.ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
+        for (int i = 0; i < 3; i++) {
+            BlockPos p = pos.relative(net.minecraft.core.Direction.getRandom(random));
+            BlockState bs = level.getBlockState(p);
+            if (bs.isAir()) {
+                for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                    if (level.getBlockState(p.relative(d)).ignitedByLava()) {
+                        level.setBlockAndUpdate(p, net.minecraft.world.level.block.Blocks.FIRE.defaultBlockState());
+                        return;
+                    }
+                }
+            } else if (bs.ignitedByLava() && level.getBlockState(p.above()).isAir()) {
+                level.setBlockAndUpdate(p.above(), net.minecraft.world.level.block.Blocks.FIRE.defaultBlockState());
+                return;
+            }
+        }
     }
 
     @Override

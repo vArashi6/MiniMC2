@@ -20,22 +20,31 @@ public class MiniBitsClient implements ClientModInitializer {
     public void onInitializeClient() {
         // Registriert den eigenen Blockstate-Modelltyp "minibits:mini_bits"
         MiniBitsModel.register();
-        System.out.println("[minibits-build] Version 13 (Umriss, Shader-Wasser)");
+        System.out.println("[minibits-build] Version 14 (Schwimmen, heiße Lava, Shader-Eigenschaft)");
 
         MiniBitsKeys.register();
         MiniBitsOutline.register();
 
-        // In Wasser-/Lava-Bits: verlangsamen und Fallschaden vermeiden (die Bewegung des Spielers wird im Client berechnet)
+        // In Wasser-/Lava-Bits wie im Original schwimmen: abbremsen, langsam sinken, mit Springen nach oben schwimmen
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             if (mc.player == null || mc.level == null) return;
-            int contact = de.minibits.MiniBits.fluidContact(mc.level, mc.player.getBoundingBox());
+            var p = mc.player;
+            int contact = de.minibits.MiniBits.fluidContact(mc.level, p.getBoundingBox());
             if (contact == 0) return;
-            mc.player.resetFallDistance();
-            if ((contact & 2) != 0) {
-                mc.player.makeStuckInBlock(net.minecraft.world.level.block.Blocks.LAVA.defaultBlockState(), new net.minecraft.world.phys.Vec3(0.5, 0.5, 0.5));
-            } else {
-                mc.player.makeStuckInBlock(net.minecraft.world.level.block.Blocks.WATER.defaultBlockState(), new net.minecraft.world.phys.Vec3(0.8, 0.8, 0.8));
+            p.resetFallDistance();
+            boolean lava = (contact & 2) != 0;
+            double drag = lava ? 0.5 : 0.8;
+            double sink = lava ? 0.02 : 0.005;
+            var dm = p.getDeltaMovement();
+            // Der nächste Tick wendet noch Schwerkraft (-0.08, dann *0.98) an: das hier gleicht sie so aus, dass die Wasserphysik herauskommt
+            double y = (drag * dm.y - sink) / 0.98 + 0.08;
+            if (mc.options.keyJump.isDown()) y += 0.04 / 0.98;
+            // Am Beckenrand hinausklettern, wenn oben frei ist
+            if (p.horizontalCollision && mc.level.noCollision(p, p.getBoundingBox().move(dm.x, dm.y + 0.6, dm.z))) {
+                y = Math.max(y, 0.30 / 0.98 + 0.08);
             }
+            double h = lava ? 0.55 : 0.87;
+            p.setDeltaMovement(dm.x * h, y, dm.z * h);
         });
 
         // Von der bloßen Hand (oder einem anderen Item) auf ein Bit wechseln: wieder 1x1x1 ohne Drehung
